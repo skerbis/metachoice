@@ -131,6 +131,25 @@ class rex_yform_value_relation_select extends rex_yform_value_abstract
     }
 
     /**
+     * Tabelle und Spalten muessen gueltige Bezeichner sein, Zugangsdaten-Tabellen sind tabu.
+     *
+     * @param list<string> $labelFields
+     */
+    private static function identifiersValid(string $table, string $valueField, array $labelFields): bool
+    {
+        $access = \FriendsOfRedaxo\RelationSelect\TableAccess::class;
+        if (!$access::isValidIdentifier($table) || $access::isDeniedTable($table) || !$access::isValidIdentifier($valueField)) {
+            return false;
+        }
+        foreach ($labelFields as $field) {
+            if (!$access::isValidIdentifier($field) || $access::isDeniedColumn($field)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
      * Lädt alle Einträge aus der Relation-Tabelle und gibt sie als Choices-Array zurück.
      *
      * @param rex_yform_manager_field $field
@@ -149,11 +168,11 @@ class rex_yform_value_relation_select extends rex_yform_value_abstract
         );
         $table       = $cfg['table'];
         $valueField  = $cfg['value_field'];
-        $labelFields = array_filter(array_map('trim', explode('|', $cfg['label_field'])));
+        $labelFields = array_values(array_filter(array_map('trim', explode('|', $cfg['label_field']))));
         $orderBy     = $cfg['order_by'];
         $filter      = $cfg['filter'];
 
-        if ('' === $table || [] === $labelFields) {
+        if ('' === $table || [] === $labelFields || !self::identifiersValid($table, $valueField, $labelFields)) {
             return [];
         }
 
@@ -169,26 +188,18 @@ class rex_yform_value_relation_select extends rex_yform_value_abstract
                 . $labelExpr . ' AS lbl '
                 . 'FROM ' . $sql->escapeIdentifier($table);
 
-            if ('' !== $filter) {
-                $query .= ' WHERE ' . $filter;
+            // Gleiche Filtersyntax wie das Widget (dbw): Bedingungen kommasepariert, Werte gebunden
+            $where = \FriendsOfRedaxo\RelationSelect\Filter::parseWhere($filter);
+            if ([] !== $where['sql']) {
+                $query .= ' WHERE ' . implode(' AND ', $where['sql']);
             }
 
-            if ('' !== $orderBy) {
-                $orderClauses = [];
-                $parts = array_map('trim', explode(',', $orderBy));
-                for ($i = 0, $iMax = count($parts); $i < $iMax; $i += 2) {
-                    $orderField = $parts[$i];
-                    $direction  = isset($parts[$i + 1]) && 'DESC' === strtoupper(trim($parts[$i + 1])) ? 'DESC' : 'ASC';
-                    if ('' !== $orderField) {
-                        $orderClauses[] = $sql->escapeIdentifier($orderField) . ' ' . $direction;
-                    }
-                }
-                if ([] !== $orderClauses) {
-                    $query .= ' ORDER BY ' . implode(', ', $orderClauses);
-                }
+            $order = \FriendsOfRedaxo\RelationSelect\Filter::parseOrder($orderBy);
+            if ([] !== $order['sql']) {
+                $query .= ' ORDER BY ' . implode(', ', $order['sql']);
             }
 
-            $sql->setQuery($query);
+            $sql->setQuery($query, $where['params']);
             $choices = [];
             while ($sql->hasNext()) {
                 $val = (string) $sql->getValue('val');
@@ -234,12 +245,13 @@ class rex_yform_value_relation_select extends rex_yform_value_abstract
      * Da das Feld kommaseparierte IDs speichert, wird whereListContains verwendet.
      *
      * @param array<string, mixed> $params
+     * @return rex_yform_manager_query<rex_yform_manager_dataset>
      */
     public static function getSearchFilter(array $params): rex_yform_manager_query
     {
         $value = trim((string) $params['value']);
 
-        /** @var rex_yform_manager_query $query */
+        /** @var rex_yform_manager_query<rex_yform_manager_dataset> $query */
         $query = $params['query'];
 
         if ('' === $value) {
@@ -292,9 +304,9 @@ class rex_yform_value_relation_select extends rex_yform_value_abstract
         );
         $table       = $cfg['table'];
         $valueField  = $cfg['value_field'];
-        $labelFields = array_filter(array_map('trim', explode('|', $cfg['label_field'])));
+        $labelFields = array_values(array_filter(array_map('trim', explode('|', $cfg['label_field']))));
 
-        if ('' === $table || [] === $labelFields) {
+        if ('' === $table || [] === $labelFields || !self::identifiersValid($table, $valueField, $labelFields)) {
             return rex_escape($ids[0]);
         }
 

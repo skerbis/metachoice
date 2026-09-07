@@ -1,28 +1,80 @@
 relation_select_title = Relation Select
-relation_select_install_success = Installation successful!
-relation_select_install_token_msg = Your API token has been generated. Please note down the token:
+relation_select_settings = Settings
+relation_select_demo = Demo
+relation_select_help = Help
+relation_select_install_success = Installation successful.
+relation_select_install_token_msg = The token for frontend API calls is available under Relation Select → Settings.
+
+# Settings
+relation_select_settings_access_legend = Table access
+relation_select_settings_allowed_tables = Allowed tables
+relation_select_settings_allowed_tables_notice = All backend users and the frontend token may read these tables. Without an entry: admins may read everything, backend users the core content tables (articles, media …) and YForm tables they have table permissions for. Tables with credentials (rex_user, rex_config …) are always blocked and not offered here.
+relation_select_settings_max_rows = Maximum rows per request
+relation_select_settings_max_rows_notice = 0 = unlimited. Already selected records are always included.
+relation_select_settings_yform_legend = YForm be_manager_relation
+relation_select_settings_enhance = Enhance relation fields
+relation_select_settings_enhance_notice = Replaces the select of be_manager_relation fields (type select single/multiple) with the Relation Select widget – no API, no table permission needed. Via attribute: {"data-relation-select": "inline"} or "modal" in the field's custom attributes; "off" excludes a field from automatic enhancement.
+relation_select_settings_enhance_attribute = Only with attribute data-relation-select
+relation_select_settings_enhance_multiple = Automatically for multiple selects
+relation_select_settings_enhance_all = Automatically for all select relations
+relation_select_settings_enhance_off = Off
+relation_select_api_token = Frontend token
+relation_select_token_description = Only required when the API is called from the frontend (custom JavaScript). The token may only read the tables allowed above. No token is needed in the backend, user permissions apply there.
+relation_select_token_none = No token – the API cannot be reached from the frontend.
 relation_select_copy_token = Copy token
-relation_select_api_token = API Token
-relation_select_token_description = This token is only required if the API is to be called from the frontend (e.g. for custom JavaScript implementations). It is not required in the backend.
-relation_select_search_placeholder = Search...
-relation_select_selected_items = Selected items
+relation_select_token_regenerate = Generate new token
+relation_select_token_regenerate_confirm = Generate a new token? Existing frontend integrations must be updated.
+relation_select_token_regenerated = New token generated.
+relation_select_token_remove = Delete token (disable frontend API)
+relation_select_token_remove_confirm = Delete the token? The API will no longer be reachable from the frontend.
+relation_select_token_removed = Token deleted.
+
+# Widget
+relation_select_search_placeholder = Search …
+relation_select_available_items = Available
+relation_select_selected_items = Selected
+relation_select_add = Add
+relation_select_add_all = Add all visible
+relation_select_remove = Remove
+relation_select_clear_all = Clear selection
+relation_select_sort = Sort (drag)
+relation_select_choose = Choose
+relation_select_modal_title = Select entries
+relation_select_cancel = Cancel
+relation_select_apply = Apply
+relation_select_no_results = No entries
+relation_select_empty_selection = Nothing selected yet
 relation_select_error_loading = Error loading data
+relation_select_online = Online
+relation_select_offline = Offline
+
+# Demo
+relation_select_demo_inline = Inline mode
+relation_select_demo_inline_intro = The widget appears directly below the field. Source here is the article table with status dot and ID.
+relation_select_demo_modal = Modal mode
+relation_select_demo_modal_intro = A button with a counter opens the widget as an overlay. "Apply" saves, "Cancel" discards the changes.
+relation_select_demo_single = Single selection
+relation_select_demo_single_intro = With data-relation-multiple="0" (YForm: "Multiple" off) only one record is stored, a new pick replaces the old one.
+relation_select_demo_select = Enhance a select (YForm be_manager_relation)
+relation_select_demo_select_intro = An existing select becomes the widget – the options come from the select itself, no API call. This is how YForm be_manager_relation fields can be enhanced via their custom attributes.
+relation_select_demo_value = Current value
+relation_select_demo_code = Show code
 
 # YForm Value
-relation_select_yform_description = Relation Select Widget – select records from any table via search widget
+relation_select_yform_description = Relation Select widget – picks records from any table via a search widget
 relation_select_yform_table = Table
 relation_select_yform_table_notice = Database name of the source table, e.g. rex_my_table
 relation_select_yform_value_field = Value field
 relation_select_yform_value_field_notice = Field stored as value, default: id
 relation_select_yform_label_field = Label field(s)
-relation_select_yform_label_field_notice = Fields displayed as label, separate multiple with |, e.g. firstname|lastname
+relation_select_yform_label_field_notice = Fields shown as label, separate multiple with |, e.g. firstname|lastname; lang:field for multilingual fields
 relation_select_yform_display_fields = Display fields
-relation_select_yform_display_fields_notice = Optional extra fields for colour/badge, e.g. color:colour|badge:status – separate with |
+relation_select_yform_display_fields_notice = Optional extra fields for colour/badge, e.g. color:colour|badge:status|(id) – separate with |
 relation_select_yform_filter = WHERE filter
-relation_select_yform_filter_notice = SQL WHERE condition, e.g. status = 1
-relation_select_yform_order_by = Sort order
-relation_select_yform_order_by_notice = Fields & direction comma-separated, e.g. name, ASC or name, ASC, prio, DESC
-relation_select_yform_multiple = Multiple selection
-relation_select_yform_attributes_notice = Write as JSON, e.g. {"readonly":"readonly"}. If the JSON contains a key "data-relation-config", its value is automatically used as field configuration (table, value field etc.) – as long as the "Table" field above is empty. Note: Back up the JSON before switching the field type, as it may be overwritten on save.
-relation_select_search_empty_option = Please select …
+relation_select_yform_filter_notice = Conditions separated by comma, e.g. status = 1, deleted = NULL, name ~ Smith*
+relation_select_yform_order_by = Order
+relation_select_yform_order_by_notice = Fields & direction comma separated, e.g. name, ASC or name, ASC, prio, DESC
+relation_select_yform_multiple = Multiple
+relation_select_yform_attributes_notice = Write as JSON, e.g. {"data-relation-mode":"modal"}. If the JSON contains a key "data-relation-config", its value is used as field configuration (table, value field etc.) – as long as the field "Table" above is empty.
+relation_select_search_empty_option = Please choose …
 relation_select_list_records = records

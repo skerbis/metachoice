@@ -14,14 +14,6 @@
  * @var bool $multiple
  */
 
-$table          ??= '';
-$value_field    ??= 'id';
-$label_field    ??= '';
-$display_fields ??= '';
-$filter         ??= '';
-$order_by       ??= '';
-$multiple       ??= true;
-
 $class_group = trim('form-group ' . $this->getHTMLClass() . ' ' . $this->getWarningClass());
 
 $notice = [];
@@ -57,7 +49,7 @@ $attributes = json_decode((string) $this->getElement('attributes'), true);
 if (!is_array($attributes)) {
     $attributes = [];
 }
-$relationMode = $attributes['data-relation-mode'] ?? ($multiple ? 'inline' : 'inline-single');
+$relationMode = (string) ($attributes['data-relation-mode'] ?? 'inline');
 
 $inputId  = $this->getFieldId();
 $inputName = $this->getFieldName();
@@ -72,6 +64,7 @@ $currentValue = (string) $this->getValue();
         value="<?= rex_escape($currentValue) ?>"
         data-relation-config="<?= rex_escape(json_encode($config)) ?>"
         data-relation-mode="<?= rex_escape($relationMode) ?>"
+        data-relation-multiple="<?= $multiple ? '1' : '0' ?>"
     >
     <?= $noticeHtml ?>
 </div>

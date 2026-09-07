@@ -1,509 +1,557 @@
-(function($) {
-    const translations = {
-        'de': {
-            search_placeholder: 'Suchen...',
-            selected_items: 'Ausgewählte Einträge',
-            error_loading: 'Fehler beim Laden der Daten'
+/**
+ * Relation Select – Split-Auswahl (verfuegbar | ausgewaehlt) mit Suche,
+ * Sortierung per Drag & Drop und optionalem Modal.
+ *
+ * Quellen:
+ *  - <input data-relation-config='{...}'>  Datensaetze per API (rex-api-call=relation_select)
+ *  - <select data-relation-select>          Optionen des Selects (z.B. YForm be_manager_relation),
+ *                                           keine API, keine Tabellenfreigabe noetig
+ *
+ * Keine Abhaengigkeiten: laeuft im Backend und im Frontend (Icons als Inline-SVG).
+ */
+(function () {
+    'use strict';
+
+    var FALLBACK_I18N = {
+        de: {
+            search_placeholder: 'Suchen …', available_items: 'Verfügbar', selected_items: 'Ausgewählt',
+            add: 'Hinzufügen', add_all: 'Alle sichtbaren hinzufügen', remove: 'Entfernen', clear_all: 'Auswahl leeren',
+            sort: 'Sortieren', choose: 'Auswählen', modal_title: 'Einträge auswählen', cancel: 'Abbrechen',
+            apply: 'Übernehmen', no_results: 'Keine Einträge', empty_selection: 'Noch nichts ausgewählt',
+            error_loading: 'Fehler beim Laden der Daten', online: 'Online', offline: 'Offline'
         },
-        'en': {
-            search_placeholder: 'Search...',
-            selected_items: 'Selected items',
-            error_loading: 'Error loading data'
+        en: {
+            search_placeholder: 'Search …', available_items: 'Available', selected_items: 'Selected',
+            add: 'Add', add_all: 'Add all visible', remove: 'Remove', clear_all: 'Clear selection',
+            sort: 'Sort', choose: 'Choose', modal_title: 'Select entries', cancel: 'Cancel',
+            apply: 'Apply', no_results: 'No entries', empty_selection: 'Nothing selected yet',
+            error_loading: 'Error loading data', online: 'Online', offline: 'Offline'
         }
     };
 
-    function getI18n() {
-        // 1. Try REDAXO Backend properties
-        if (typeof rex !== 'undefined' && rex.relation_select) {
-            return rex.relation_select;
-        }
+    // Eigene Symbole (Inline-SVG), damit das Widget auch ohne Backend-Icon-Font laeuft
+    var ICONS = {
+        search: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 14 15.5l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg>',
+        plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>',
+        minus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13H5v-2h14z"/></svg>',
+        check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>',
+        addAll: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h12v2H3zm0 6h12v2H3zm0 6h8v2H3zm16-4v-3h-2v3h-3v2h3v3h2v-3h3v-2z"/></svg>',
+        trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM8 9h8v10H8V9zm7.5-5-1-1h-5l-1 1H5v2h14V4z"/></svg>',
+        grip: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>',
+        close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.4 17.6 5 12 10.6 6.4 5 5 6.4l5.6 5.6L5 17.6 6.4 19l5.6-5.6 5.6 5.6 1.4-1.4-5.6-5.6z"/></svg>',
+        list: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h2v-2H3zm0 4h2v-2H3zm0-8h2V7H3zm4 4h14v-2H7zm0 4h14v-2H7zM7 7v2h14V7z"/></svg>',
+        link: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.9 12a3.1 3.1 0 0 1 3.1-3.1h4V7H7a5 5 0 0 0 0 10h4v-1.9H7A3.1 3.1 0 0 1 3.9 12zM8 13h8v-2H8zm9-6h-4v1.9h4a3.1 3.1 0 0 1 0 6.2h-4V17h4a5 5 0 0 0 0-10z"/></svg>'
+    };
 
-        // 2. Try HTML lang attribute
-        const lang = document.documentElement.lang.substr(0, 2).toLowerCase();
-        if (translations[lang]) {
-            return translations[lang];
-        }
+    function icon(name) { return '<span class="rs-icon rs-icon-' + name + '">' + ICONS[name] + '</span>'; }
 
-        // 3. Fallback to German
-        return translations['de'];
-    }
-
-    /**
-     * Format label with enhanced syntax support
-     * @param {Object} item - Data item with value, label and optional display fields
-     * @param {Object} config - Configuration with labelFormat and displayFormat options
-     * @returns {string} Formatted HTML label
-     */
-    function formatLabel(item, config) {
-        let html = '';
-        
-        // Check for enhanced label format
-        const labelFormat = config.labelFormat || '';
-        const displayFormat = config.displayFormat || '';
-        
-        if (displayFormat) {
-            // Parse display format: "color:fieldname|badge:status|(id)"
-            const parts = displayFormat.split('|');
-            parts.forEach(part => {
-                part = part.trim();
-                
-                // Color preview: "color:fieldname"
-                if (part.startsWith('color:')) {
-                    const fieldName = part.substring(6);
-                    const fieldValue = item[fieldName] ? String(item[fieldName]).trim() : '';
-                    if (fieldValue !== '') {
-                        const color = $('<div>').text(fieldValue).html();
-                        html += `<span class="relation-color-preview" style="background-color: ${color}"></span>`;
-                    } else {
-                        // Show placeholder for empty color
-                        html += `<span class="relation-color-preview relation-color-empty"></span>`;
-                    }
-                }
-                // Badge: "badge:fieldname"
-                else if (part.startsWith('badge:')) {
-                    const fieldName = part.substring(6);
-                    let fieldValue = item[fieldName] ? String(item[fieldName]).trim() : '';
-                    
-                    // Special handling for status field - show as circle indicator
-                    if (fieldName === 'status') {
-                        const statusClass = item[fieldName] == 1 ? 'relation-status-online' : 'relation-status-offline';
-                        const statusTitle = item[fieldName] == 1 ? 'Online' : 'Offline';
-                        html += `<span class="relation-status ${statusClass}" title="${statusTitle}"></span>`;
-                    } else if (fieldValue !== '') {
-                        const badgeText = $('<div>').text(fieldValue).html();
-                        html += `<span class="relation-badge">${badgeText}</span>`;
-                    }
-                }
-                // ID display: "(id)"
-                else if (part === '(id)') {
-                    html += `<span class="relation-id">(${$('<div>').text(item.value).html()})</span>`;
-                }
-            });
-        }
-        
-        // Add main label
-        html += `<span class="relation-label-text">${$('<div>').text(item.label).html()}</span>`;
-        
-        return html;
-    }
-
-    function initRelationSelect(container) {
-        const i18n = getI18n();
-
-        $(container).find('input[data-relation-config]').each(function() {
-            const input = this;
-            
-            // Prevent double initialization
-            if ($(input).next('.relation-select-widget').length > 0 || $(input).data('relation-initialized')) {
-                return;
-            }
-            $(input).data('relation-initialized', true);
-
-            let config;
-            const mode = input.dataset.relationMode || 'inline'; // 'inline' or 'modal';
-            
-            try {
-                config = JSON.parse(input.dataset.relationConfig || '{}');
-            } catch (e) {
-                console.error('Invalid relation config:', e);
-                return;
-            }
-
-            // Check required config
-            if (!config.table || !config.valueField || !config.labelField) {
-                console.error('Missing required config parameters');
-                return;
-            }
-            
-            // Create widget structure
-            const widget = $(`
-                <div class="relation-select-widget">
-                    <div class="relation-select-available">
-                        <div class="relation-select-search-row">
-                            <input type="text" class="form-control relation-select-search" placeholder="${i18n.search_placeholder}">
-                            <button type="button" class="btn btn-default relation-select-add-all" title="Alle sichtbaren hinzufügen">
-                                <svg class="relation-select-icon" viewBox="0 0 24 24" width="16" height="16">
-                                    <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                                </svg>
-                                Alle
-                            </button>
-                        </div>
-                        <ul class="relation-select-list available-list"></ul>
-                    </div>
-                    <div class="relation-select-selected">
-                        <div class="relation-select-header-row">
-                            <div class="relation-select-header">${i18n.selected_items}</div>
-                            <button type="button" class="btn btn-link relation-select-clear-all" title="Alle entfernen">
-                                <svg class="relation-select-icon" viewBox="0 0 24 24" width="14" height="14">
-                                    <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                                </svg>
-                            </button>
-                        </div>
-                        <ul class="relation-select-list selected-list"></ul>
-                    </div>
-                </div>
-            `);
-
-            if (mode === 'modal') {
-                // Modal mode: Create button and modal overlay
-                const selectedCount = input.value ? input.value.split(',').filter(v => v).length : 0;
-                const badgeClass = selectedCount > 0 ? 'relation-select-badge has-items' : 'relation-select-badge';
-                const button = $(`
-                    <button type="button" class="btn btn-default relation-select-open-modal">
-                        <svg class="relation-select-icon" viewBox="0 0 24 24" width="14" height="14">
-                            <path fill="currentColor" d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
-                        </svg>
-                        Auswählen
-                        <span class="${badgeClass}">${selectedCount}</span>
-                    </button>
-                `);
-                
-                const modal = $(`
-                    <div class="relation-select-modal">
-                        <div class="relation-select-modal-overlay"></div>
-                        <div class="relation-select-modal-dialog">
-                            <div class="relation-select-modal-header">
-                                <h4 class="relation-select-modal-title">Einträge auswählen</h4>
-                                <button type="button" class="relation-select-modal-close">
-                                    <svg class="relation-select-icon" viewBox="0 0 24 24" width="20" height="20">
-                                        <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-                                    </svg>
-                                </button>
-                            </div>
-                            <div class="relation-select-modal-body"></div>
-                            <div class="relation-select-modal-footer">
-                                <button type="button" class="btn btn-default relation-select-modal-cancel">Abbrechen</button>
-                                <button type="button" class="btn btn-primary relation-select-modal-apply">Übernehmen</button>
-                            </div>
-                        </div>
-                    </div>
-                `);
-                
-                modal.find('.relation-select-modal-body').append(widget);
-                $('body').append(modal);
-                
-                // Hide input and show button
-                $(input).hide().after(button);
-                
-                // Update badge count function
-                const updateBadge = function() {
-                    const count = input.value ? input.value.split(',').filter(v => v).length : 0;
-                    const badge = button.find('.relation-select-badge');
-                    badge.text(count);
-                    if (count > 0) {
-                        badge.addClass('has-items');
-                    } else {
-                        badge.removeClass('has-items');
-                    }
-                };
-                
-                // Open modal
-                button.on('click', function() {
-                    modal.addClass('active');
-                    $('body').addClass('relation-select-modal-open');
-                });
-                
-                // Close modal
-                modal.find('.relation-select-modal-close, .relation-select-modal-cancel, .relation-select-modal-overlay').on('click', function() {
-                    modal.removeClass('active');
-                    $('body').removeClass('relation-select-modal-open');
-                });
-                
-                // Apply selection and update badge
-                modal.find('.relation-select-modal-apply').on('click', function() {
-                    modal.removeClass('active');
-                    $('body').removeClass('relation-select-modal-open');
-                    updateBadge();
-                });
-                
-                // ESC key to close
-                $(document).on('keydown.relation-select-modal', function(e) {
-                    if (e.key === 'Escape' && modal.hasClass('active')) {
-                        modal.removeClass('active');
-                        $('body').removeClass('relation-select-modal-open');
-                    }
-                });
-                
-                // Store updateBadge function for later use
-                $(input).data('updateBadge', updateBadge);
-                
-            } else {
-                // Inline mode: Insert widget directly after input
-                $(input).hide().after(widget);
-            }
-
-            // Build API URL using URLSearchParams for proper encoding
-            const params = new URLSearchParams({
-                'rex-api-call': 'relation_select',
-                'table': config.table,
-                'value_field': config.valueField,
-                'label_field': config.labelField
-            });
-
-            // Add optional parameters if they exist
-            if (config.displayFields) {
-                params.append('display_fields', config.displayFields);
-            }
-            if (config.dbw) {
-                params.append('dbw', config.dbw);
-            }
-            if (config.dbob) {
-                params.append('dbob', config.dbob);
-            }
-            
-            // Add clang (current language) - check rex object or config
-            const clang = config.clang || (typeof rex !== 'undefined' && rex.clang_id) || 1;
-            params.append('clang', clang);
-            
-            // Add token if provided in config (for frontend usage)
-            if (config.token) {
-                params.append('token', config.token);
-            }
-
-            // Add timestamp cache buster
-            params.append('_t', Date.now());
-
-            const url = 'index.php?' + params.toString();
-            
-            // Get selected values
-            const selectedValues = input.value.split(',').filter(v => v);
-            const availableList = widget.find('.available-list');
-            const selectedList = widget.find('.selected-list');
-            
-            // Load all data
-            const fetchAllData = fetch(url, {
-                cache: 'no-store'
-            }).then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            });
-            
-            // Load selected items separately (without dbw filter to get full data)
-            let fetchSelectedData = Promise.resolve([]);
-            if (selectedValues.length > 0) {
-                const selectedParams = new URLSearchParams({
-                    'rex-api-call': 'relation_select',
-                    'table': config.table,
-                    'value_field': config.valueField,
-                    'label_field': config.labelField
-                });
-                
-                if (config.displayFields) {
-                    selectedParams.append('display_fields', config.displayFields);
-                }
-                
-                // Add clang
-                selectedParams.append('clang', clang);
-                
-                // Use WHERE clause to get only selected IDs
-                const whereClause = selectedValues.map(v => `${config.valueField} = ${v}`).join(' OR ');
-                selectedParams.append('dbw', whereClause);
-                selectedParams.append('_t', Date.now());
-                
-                const selectedUrl = 'index.php?' + selectedParams.toString();
-                
-                fetchSelectedData = fetch(selectedUrl, {
-                    cache: 'no-store'
-                }).then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                });
-            }
-            
-            // Wait for both requests
-            Promise.all([fetchAllData, fetchSelectedData])
-                .then(([allData, selectedData]) => {
-                    
-                    // Fill available items
-                    allData.forEach(item => {
-                        if (!selectedValues.includes(item.value.toString())) {
-                            const escapedValue = $('<div>').text(item.value).html();
-                            const formattedLabel = formatLabel(item, config);
-                            availableList.append(`
-                                <li data-value="${escapedValue}" class="relation-select-item-available" data-item='${JSON.stringify(item).replace(/'/g, "&apos;")}'>
-                                    ${formattedLabel}
-                                    <button type="button" class="btn btn-link add-item" aria-label="Hinzufügen">
-                                        <svg class="relation-select-icon" viewBox="0 0 24 24" width="16" height="16">
-                                            <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                                        </svg>
-                                    </button>
-                                </li>
-                            `);
-                        }
-                    });
-
-                    // Fill selected items from selectedData (has full displayFields)
-                    selectedValues.forEach(value => {
-                        // Find all items with this value (multi-language support)
-                        let items = selectedData.filter(i => i.value.toString() === value);
-                        
-                        // Prefer item with displayFields filled (e.g., art_color not null)
-                        let item = items.find(i => {
-                            const displayFields = config.displayFields ? config.displayFields.split('|') : [];
-                            return displayFields.some(field => {
-                                // Präfix wie "badge:", "color:" entfernen
-                                const colonPos = field.indexOf(':');
-                                const fieldName = colonPos !== -1 ? field.substring(colonPos + 1).trim() : field.trim();
-                                return i[fieldName] != null && i[fieldName] !== '';
-                            });
-                        }) || items[0];
-                        
-                        if (item) {
-                            const escapedValue = $('<div>').text(item.value).html();
-                            const formattedLabel = formatLabel(item, config);
-                            selectedList.append(`
-                                <li data-value="${escapedValue}" data-item='${JSON.stringify(item).replace(/'/g, "&apos;")}'>
-                                    <svg class="relation-select-icon handle" viewBox="0 0 24 24" width="16" height="16" aria-label="Sortieren">
-                                        <circle cx="9" cy="5" r="1.5" fill="currentColor"/>
-                                        <circle cx="9" cy="12" r="1.5" fill="currentColor"/>
-                                        <circle cx="9" cy="19" r="1.5" fill="currentColor"/>
-                                        <circle cx="15" cy="5" r="1.5" fill="currentColor"/>
-                                        <circle cx="15" cy="12" r="1.5" fill="currentColor"/>
-                                        <circle cx="15" cy="19" r="1.5" fill="currentColor"/>
-                                    </svg>
-                                    ${formattedLabel}
-                                    <button type="button" class="btn btn-link remove-item" aria-label="Entfernen">
-                                        <svg class="relation-select-icon" viewBox="0 0 24 24" width="16" height="16">
-                                            <path fill="currentColor" d="M19 13H5v-2h14v2z"/>
-                                        </svg>
-                                    </button>
-                                </li>
-                            `);
-                        }
-                    });
-
-                    // Make selected list sortable
-                    if (typeof Sortable !== 'undefined') {
-                        new Sortable(selectedList[0], {
-                            handle: '.handle',
-                            animation: 150,
-                            onSort: () => updateValue()
-                        });
-                    } else {
-                        console.warn('SortableJS not found. Sorting disabled.');
-                    }
-
-                    // Search functionality
-                    widget.find('.relation-select-search').on('input', function() {
-                        const search = this.value.toLowerCase();
-                        availableList.find('li').each(function() {
-                            const text = $(this).text().toLowerCase();
-                            $(this).toggle(text.includes(search));
-                        });
-                    });
-
-                    // Add all visible items
-                    widget.on('click', '.relation-select-add-all', function() {
-                        availableList.find('li:visible').each(function() {
-                            $(this).find('.add-item').click();
-                        });
-                    });
-
-                    // Clear all selected items
-                    widget.on('click', '.relation-select-clear-all', function() {
-                        selectedList.find('li').each(function() {
-                            $(this).find('.remove-item').click();
-                        });
-                    });
-
-                    // Add item - Click on entire row OR button
-                    widget.on('click', '.relation-select-item-available', function(e) {
-                        // Don't trigger if clicking on button directly (button will handle it)
-                        if ($(e.target).closest('.add-item').length > 0) {
-                            return;
-                        }
-                        $(this).find('.add-item').click();
-                    });
-                    
-                    widget.on('click', '.add-item', function(e) {
-                        e.stopPropagation(); // Prevent double triggering
-                        const li = $(this).closest('li');
-                        const value = li.data('value');
-                        const item = JSON.parse(li.attr('data-item') || '{}');
-                        
-                        const escapedValue = $('<div>').text(value).html();
-                        const formattedLabel = formatLabel(item, config);
-                        
-                        selectedList.append(`
-                            <li data-value="${escapedValue}" data-item='${li.attr('data-item')}'>
-                                <svg class="relation-select-icon handle" viewBox="0 0 24 24" width="16" height="16">
-                                    <circle cx="9" cy="5" r="1.5" fill="currentColor"/>
-                                    <circle cx="9" cy="12" r="1.5" fill="currentColor"/>
-                                    <circle cx="9" cy="19" r="1.5" fill="currentColor"/>
-                                    <circle cx="15" cy="5" r="1.5" fill="currentColor"/>
-                                    <circle cx="15" cy="12" r="1.5" fill="currentColor"/>
-                                    <circle cx="15" cy="19" r="1.5" fill="currentColor"/>
-                                </svg>
-                                ${formattedLabel}
-                                <button type="button" class="btn btn-link remove-item">
-                                    <svg class="relation-select-icon" viewBox="0 0 24 24" width="16" height="16">
-                                        <path fill="currentColor" d="M19 13H5v-2h14v2z"/>
-                                    </svg>
-                                </button>
-                            </li>
-                        `);
-                        li.remove();
-                        updateValue();
-                    });
-
-                    // Remove item
-                    widget.on('click', '.remove-item', function() {
-                        const li = $(this).closest('li');
-                        const value = li.data('value');
-                        const item = JSON.parse(li.attr('data-item') || '{}');
-                        
-                        const escapedValue = $('<div>').text(value).html();
-                        const formattedLabel = formatLabel(item, config);
-                        
-                        availableList.append(`
-                            <li data-value="${escapedValue}" class="relation-select-item-available" data-item='${li.attr('data-item')}'>
-                                ${formattedLabel}
-                                <button type="button" class="btn btn-link add-item">
-                                    <svg class="relation-select-icon" viewBox="0 0 24 24" width="16" height="16">
-                                        <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                                    </svg>
-                                </button>
-                            </li>
-                        `);
-                        li.remove();
-                        updateValue();
-                    });
-
-                    function updateValue() {
-                        const values = [];
-                        selectedList.find('li').each(function() {
-                            values.push($(this).data('value'));
-                        });
-                        input.value = values.join(',');
-                        $(input).trigger('change');
-                        
-                        // Update badge in modal mode
-                        const updateBadgeFn = $(input).data('updateBadge');
-                        if (updateBadgeFn && typeof updateBadgeFn === 'function') {
-                            updateBadgeFn();
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading data:', error);
-                    widget.find('.available-list').html(`<li class="error">${i18n.error_loading}</li>`);
-                });
+    function esc(value) {
+        return String(value === null || value === undefined ? '' : value).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
         });
     }
 
-    // Init on rex:ready (Backend)
-    $(document).on('rex:ready', function(e, container) {
-        initRelationSelect(container);
-    });
+    // Farbwerte nur in sicheren Formen (kein CSS-Injection ueber style="")
+    function safeColor(value) {
+        value = String(value || '').trim();
+        return /^(#[0-9a-f]{3,8}|[a-z]{3,20}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%]+\))$/i.test(value) ? value : '';
+    }
 
-    // Init on document ready (Frontend)
-    $(function() {
-        initRelationSelect(document);
-    });
+    function settings() {
+        return (typeof rex !== 'undefined' && rex.relation_select) ? rex.relation_select : {};
+    }
 
-})(jQuery);
+    function i18n() {
+        var base = settings().i18n;
+        if (base) return base;
+        var lang = (document.documentElement.lang || 'de').slice(0, 2).toLowerCase();
+        return FALLBACK_I18N[lang] || FALLBACK_I18N.de;
+    }
 
+    function t(key) {
+        var strings = i18n();
+        return strings[key] || FALLBACK_I18N.de[key] || key;
+    }
+
+    function fire(el, name, detail) {
+        el.dispatchEvent(new CustomEvent(name, { bubbles: true, detail: detail || {} }));
+        // rex:change wie bei anderen Widgets mit dem Feld als Container (Handler erwarten ein jQuery-Objekt)
+        if (window.jQuery && name === 'change') window.jQuery(el).trigger('rex:change', [window.jQuery(el)]);
+    }
+
+    /**
+     * Label-HTML nach displayFormat: "color:feld|badge:feld|(id)" -- Farbpunkt,
+     * Badge (status als Online/Offline-Punkt), ID, danach der Label-Text.
+     */
+    function renderLabel(item, format) {
+        var html = '';
+        String(format || '').split('|').forEach(function (part) {
+            part = part.trim();
+            if (part.indexOf('color:') === 0) {
+                var color = safeColor(item[part.substring(6).trim()]);
+                html += color
+                    ? '<span class="rs-color" style="background-color:' + esc(color) + '"></span>'
+                    : '<span class="rs-color rs-color-empty"></span>';
+            } else if (part.indexOf('badge:') === 0) {
+                var field = part.substring(6).trim();
+                var raw = item[field];
+                if (field === 'status') {
+                    var online = String(raw) === '1';
+                    html += '<span class="rs-state ' + (online ? 'rs-state-online' : 'rs-state-offline') + '" title="' + esc(online ? t('online') : t('offline')) + '"></span>';
+                } else if (raw !== null && raw !== undefined && String(raw).trim() !== '') {
+                    html += '<span class="rs-badge">' + esc(String(raw).trim()) + '</span>';
+                }
+            } else if (part === '(id)') {
+                html += '<span class="rs-id">' + esc(item.value) + '</span>';
+            }
+        });
+        return html + '<span class="rs-label">' + esc(item.label) + '</span>';
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Widget                                                              */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * @param {Object} opts
+     *   multiple   {boolean}
+     *   format     {string}     displayFormat
+     *   load       {function}   () => Promise<Array<{value,label,...}>>
+     *   selected   {function}   () => Array<string>   aktuelle Auswahl (Reihenfolge)
+     *   commit     {function}   (values: Array<string>) => void
+     */
+    function Widget(opts) {
+        this.opts = opts;
+        this.items = new Map();       // value -> item
+        this.selected = [];           // geordnete Werte
+        this.root = this.build();
+        this.available = this.root.querySelector('.rs-available-list');
+        this.chosen = this.root.querySelector('.rs-selected-list');
+        this.search = this.root.querySelector('.rs-search');
+        this.bind();
+    }
+
+    Widget.prototype.build = function () {
+        var el = document.createElement('div');
+        el.className = 'rs-widget relation-select-widget' + (this.opts.multiple ? '' : ' rs-single');
+        el.innerHTML =
+            '<div class="rs-pane rs-pane-available">' +
+                '<div class="rs-pane-head">' +
+                    '<label class="rs-search-wrap">' + icon('search') + '<input type="text" class="rs-search" placeholder="' + esc(t('search_placeholder')) + '" autocomplete="off"></label>' +
+                    (this.opts.multiple ? '<button type="button" class="rs-btn rs-btn-icon rs-add-all" title="' + esc(t('add_all')) + '">' + icon('addAll') + '</button>' : '') +
+                '</div>' +
+                '<ul class="rs-list rs-available-list" role="listbox" aria-label="' + esc(t('available_items')) + '"></ul>' +
+            '</div>' +
+            '<div class="rs-pane rs-pane-selected">' +
+                '<div class="rs-pane-head">' +
+                    '<span class="rs-pane-title">' + esc(t('selected_items')) + ' <span class="rs-count">0</span></span>' +
+                    '<button type="button" class="rs-btn rs-btn-icon rs-clear-all" title="' + esc(t('clear_all')) + '">' + icon('trash') + '</button>' +
+                '</div>' +
+                '<ul class="rs-list rs-selected-list" role="listbox" aria-label="' + esc(t('selected_items')) + '"></ul>' +
+            '</div>';
+        return el;
+    };
+
+    Widget.prototype.load = function () {
+        var self = this;
+        self.available.innerHTML = '<li class="rs-empty rs-loading">…</li>';
+        return self.opts.load().then(function (rows) {
+            self.items.clear();
+            (rows || []).forEach(function (row) {
+                if (row && row.value !== null && row.value !== undefined) {
+                    self.items.set(String(row.value), row);
+                }
+            });
+            self.selected = self.opts.selected().filter(function (v) { return self.items.has(v); });
+            self.render();
+        }).catch(function (err) {
+            self.available.innerHTML = '<li class="rs-empty rs-error">' + esc(t('error_loading')) + '</li>';
+            if (window.console) console.error('relation_select:', err);
+        });
+    };
+
+    Widget.prototype.itemHtml = function (item, chosen) {
+        return '<li class="rs-item" data-value="' + esc(item.value) + '" tabindex="0" role="option" draggable="' + (chosen && this.opts.multiple ? 'true' : 'false') + '">' +
+            (chosen && this.opts.multiple ? '<span class="rs-handle" title="' + esc(t('sort')) + '">' + icon('grip') + '</span>' : '') +
+            '<span class="rs-item-body">' + renderLabel(item, this.opts.format) + '</span>' +
+            '<button type="button" class="rs-item-action ' + (chosen ? 'rs-remove' : 'rs-add') + '" title="' + esc(chosen ? t('remove') : t('add')) + '" tabindex="-1">' + icon(chosen ? 'minus' : 'plus') + '</button>' +
+        '</li>';
+    };
+
+    Widget.prototype.render = function () {
+        var self = this;
+        var chosenSet = {};
+        self.selected.forEach(function (v) { chosenSet[v] = true; });
+
+        var availableHtml = '';
+        self.items.forEach(function (item, value) {
+            if (!chosenSet[value]) availableHtml += self.itemHtml(item, false);
+        });
+        self.available.innerHTML = availableHtml + '<li class="rs-empty" hidden>' + esc(t('no_results')) + '</li>';
+
+        var chosenHtml = '';
+        self.selected.forEach(function (value) { chosenHtml += self.itemHtml(self.items.get(value), true); });
+        self.chosen.innerHTML = chosenHtml || '<li class="rs-empty">' + esc(t('empty_selection')) + '</li>';
+
+        self.root.querySelector('.rs-count').textContent = String(self.selected.length);
+        self.applySearch();
+    };
+
+    Widget.prototype.applySearch = function () {
+        var query = (this.search.value || '').trim().toLowerCase();
+        var items = this.available.querySelectorAll('.rs-item');
+        var visible = 0;
+        Array.prototype.forEach.call(items, function (li) {
+            var hit = query === '' || li.textContent.toLowerCase().indexOf(query) !== -1;
+            li.hidden = !hit;
+            if (hit) visible++;
+        });
+        var empty = this.available.querySelector('.rs-empty');
+        if (empty) empty.hidden = items.length > 0 && visible > 0;
+    };
+
+    Widget.prototype.add = function (value) {
+        if (!this.items.has(value) || this.selected.indexOf(value) !== -1) return;
+        if (this.opts.multiple) this.selected.push(value);
+        else this.selected = [value];
+        this.render();
+        this.opts.commit(this.selected.slice());
+    };
+
+    Widget.prototype.remove = function (value) {
+        var index = this.selected.indexOf(value);
+        if (index === -1) return;
+        this.selected.splice(index, 1);
+        this.render();
+        this.opts.commit(this.selected.slice());
+    };
+
+    Widget.prototype.setSelected = function (values) {
+        var self = this;
+        self.selected = values.filter(function (v) { return self.items.has(v); });
+        self.render();
+    };
+
+    Widget.prototype.bind = function () {
+        var self = this;
+
+        self.search.addEventListener('input', function () { self.applySearch(); });
+        self.search.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                var first = self.available.querySelector('.rs-item:not([hidden])');
+                if (first) self.add(first.getAttribute('data-value'));
+            }
+        });
+
+        var addAll = self.root.querySelector('.rs-add-all');
+        if (addAll) {
+            addAll.addEventListener('click', function () {
+                Array.prototype.forEach.call(self.available.querySelectorAll('.rs-item:not([hidden])'), function (li) {
+                    var value = li.getAttribute('data-value');
+                    if (self.selected.indexOf(value) === -1) self.selected.push(value);
+                });
+                self.render();
+                self.opts.commit(self.selected.slice());
+            });
+        }
+        self.root.querySelector('.rs-clear-all').addEventListener('click', function () {
+            if (!self.selected.length) return;
+            self.selected = [];
+            self.render();
+            self.opts.commit([]);
+        });
+
+        function itemOf(target) {
+            var li = target.closest ? target.closest('.rs-item') : null;
+            return li && li.getAttribute('data-value');
+        }
+        self.available.addEventListener('click', function (e) {
+            var value = itemOf(e.target);
+            if (value !== null && value !== undefined) self.add(value);
+        });
+        self.chosen.addEventListener('click', function (e) {
+            if (e.target.closest('.rs-handle')) return;
+            var value = itemOf(e.target);
+            if (value !== null && value !== undefined) self.remove(value);
+        });
+        self.root.addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            var li = e.target.closest && e.target.closest('.rs-item');
+            if (!li) return;
+            e.preventDefault();
+            var value = li.getAttribute('data-value');
+            if (li.parentNode === self.available) self.add(value); else self.remove(value);
+        });
+
+        // Sortierung per nativem Drag & Drop
+        var dragging = null;
+        self.chosen.addEventListener('dragstart', function (e) {
+            dragging = e.target.closest('.rs-item');
+            if (!dragging) return;
+            dragging.classList.add('rs-dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            try { e.dataTransfer.setData('text/plain', dragging.getAttribute('data-value')); } catch (err) { /* IE */ }
+        });
+        self.chosen.addEventListener('dragover', function (e) {
+            if (!dragging) return;
+            e.preventDefault();
+            var over = e.target.closest('.rs-item');
+            if (!over || over === dragging) return;
+            var rect = over.getBoundingClientRect();
+            var before = (e.clientY - rect.top) < rect.height / 2;
+            self.chosen.insertBefore(dragging, before ? over : over.nextSibling);
+        });
+        self.chosen.addEventListener('drop', function (e) { e.preventDefault(); });
+        self.chosen.addEventListener('dragend', function () {
+            if (!dragging) return;
+            dragging.classList.remove('rs-dragging');
+            dragging = null;
+            var order = Array.prototype.map.call(self.chosen.querySelectorAll('.rs-item'), function (li) { return li.getAttribute('data-value'); });
+            if (order.join(',') !== self.selected.join(',')) {
+                self.selected = order;
+                self.root.querySelector('.rs-count').textContent = String(order.length);
+                self.opts.commit(order.slice());
+            }
+        });
+    };
+
+    /* ------------------------------------------------------------------ */
+    /* Modal                                                               */
+    /* ------------------------------------------------------------------ */
+
+    var scrollLock = null;
+    function lockScroll() {
+        if (scrollLock !== null) return;
+        scrollLock = window.scrollY || document.documentElement.scrollTop || 0;
+        document.documentElement.classList.add('rs-modal-open');
+        document.documentElement.style.top = '-' + scrollLock + 'px';
+    }
+    function unlockScroll() {
+        if (scrollLock === null) return;
+        document.documentElement.classList.remove('rs-modal-open');
+        document.documentElement.style.top = '';
+        window.scrollTo(0, scrollLock);
+        scrollLock = null;
+    }
+
+    function Modal(widget, title) {
+        var self = this;
+        self.widget = widget;
+        self.snapshot = [];
+        self.el = document.createElement('div');
+        self.el.className = 'rs-modal';
+        self.el.setAttribute('role', 'dialog');
+        self.el.setAttribute('aria-modal', 'true');
+        self.el.innerHTML =
+            '<div class="rs-modal-backdrop"></div>' +
+            '<div class="rs-modal-dialog">' +
+                '<div class="rs-modal-header">' + icon('link') + '<span class="rs-modal-title">' + esc(title || t('modal_title')) + '</span>' +
+                    '<button type="button" class="rs-modal-close" title="' + esc(t('cancel')) + '">' + icon('close') + '</button></div>' +
+                '<div class="rs-modal-body"></div>' +
+                '<div class="rs-modal-footer"><span class="rs-modal-status"></span>' +
+                    '<button type="button" class="rs-btn rs-modal-cancel">' + esc(t('cancel')) + '</button>' +
+                    '<button type="button" class="rs-btn rs-btn-primary rs-modal-apply">' + icon('check') + esc(t('apply')) + '</button></div>' +
+            '</div>';
+        self.el.querySelector('.rs-modal-body').appendChild(widget.root);
+        document.body.appendChild(self.el);
+
+        self.el.querySelector('.rs-modal-backdrop').addEventListener('click', function () { self.cancel(); });
+        self.el.querySelector('.rs-modal-close').addEventListener('click', function () { self.cancel(); });
+        self.el.querySelector('.rs-modal-cancel').addEventListener('click', function () { self.cancel(); });
+        self.el.querySelector('.rs-modal-apply').addEventListener('click', function () { self.apply(); });
+        self.onKey = function (e) {
+            if (e.key === 'Escape' && self.el.classList.contains('rs-open')) { e.preventDefault(); self.cancel(); }
+        };
+    }
+
+    Modal.prototype.open = function () {
+        this.snapshot = this.widget.selected.slice();
+        this.el.classList.add('rs-open');
+        lockScroll();
+        document.addEventListener('keydown', this.onKey);
+        var search = this.widget.search;
+        setTimeout(function () { search.focus(); }, 30);
+    };
+
+    Modal.prototype.close = function () {
+        this.el.classList.remove('rs-open');
+        document.removeEventListener('keydown', this.onKey);
+        unlockScroll();
+    };
+
+    Modal.prototype.cancel = function () {
+        this.widget.setSelected(this.snapshot);
+        this.widget.opts.commit(this.snapshot.slice());
+        this.close();
+    };
+
+    Modal.prototype.apply = function () {
+        this.widget.opts.commit(this.widget.selected.slice());
+        this.close();
+        if (this.onApply) this.onApply();
+    };
+
+    /* ------------------------------------------------------------------ */
+    /* Quellen                                                             */
+    /* ------------------------------------------------------------------ */
+
+    function apiUrl(config, selectedValues) {
+        var params = new URLSearchParams({
+            'rex-api-call': 'relation_select',
+            table: config.table,
+            value_field: config.valueField,
+            label_field: config.labelField
+        });
+        if (config.displayFields) params.append('display_fields', config.displayFields);
+        if (config.dbw) params.append('dbw', config.dbw);
+        if (config.dbob) params.append('dbob', config.dbob);
+        var clang = config.clang || (typeof rex !== 'undefined' && rex.clang_id) || 0;
+        if (clang) params.append('clang', clang);
+        if (selectedValues.length) params.append('values', selectedValues.join(','));
+        if (config.token) params.append('token', config.token);
+        params.append('_t', String(Date.now()));
+        return (config.endpoint || 'index.php') + '?' + params.toString();
+    }
+
+    function parseValues(raw) {
+        return String(raw || '').split(',').map(function (v) { return v.trim(); }).filter(function (v) { return v !== ''; });
+    }
+
+    // Quelle 1: Input mit data-relation-config (API)
+    function initInput(input) {
+        var config;
+        try {
+            config = JSON.parse(input.dataset.relationConfig || '{}');
+        } catch (e) {
+            if (window.console) console.error('relation_select: invalid data-relation-config', e);
+            return;
+        }
+        if (!config.table || !config.valueField || !config.labelField) {
+            if (window.console) console.error('relation_select: table, valueField and labelField are required');
+            return;
+        }
+        var mode = input.dataset.relationMode || 'inline';
+        var multiple = input.dataset.relationMultiple !== '0' && config.multiple !== false && mode !== 'inline-single';
+
+        var widget = new Widget({
+            multiple: multiple,
+            format: config.displayFormat || config.displayFields || '',
+            load: function () {
+                return fetch(apiUrl(config, parseValues(input.value)), { cache: 'no-store', credentials: 'same-origin' }).then(function (response) {
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    return response.json();
+                });
+            },
+            selected: function () { return parseValues(input.value); },
+            commit: function (values) {
+                var next = values.join(',');
+                if (input.value === next) return;
+                input.value = next;
+                fire(input, 'change', { values: values });
+            }
+        });
+
+        mount(input, widget, mode, input.dataset.relationTitle);
+        widget.load();
+    }
+
+    // Quelle 2: <select> (be_manager_relation, eigene Selects) -- ohne API
+    function initSelect(select) {
+        var mode = select.dataset.relationSelect === 'modal' || select.dataset.relationMode === 'modal' ? 'modal' : 'inline';
+        var multiple = select.multiple;
+
+        var widget = new Widget({
+            multiple: multiple,
+            format: select.dataset.relationFormat || '',
+            load: function () {
+                var rows = [];
+                Array.prototype.forEach.call(select.options, function (option) {
+                    if (option.value === '') return;
+                    var row = { value: option.value, label: option.textContent.trim() };
+                    Object.keys(option.dataset).forEach(function (key) { row[key] = option.dataset[key]; });
+                    rows.push(row);
+                });
+                return Promise.resolve(rows);
+            },
+            selected: function () {
+                return Array.prototype.filter.call(select.options, function (o) { return o.selected && o.value !== ''; })
+                    .map(function (o) { return o.value; });
+            },
+            commit: function (values) {
+                var changed = false;
+                Array.prototype.forEach.call(select.options, function (option) {
+                    var shouldSelect = values.indexOf(option.value) !== -1 || (option.value === '' && !multiple && values.length === 0);
+                    if (option.selected !== shouldSelect) { option.selected = shouldSelect; changed = true; }
+                });
+                // Reihenfolge der Auswahl = DOM-Reihenfolge der Optionen = Reihenfolge beim Absenden
+                if (multiple) {
+                    values.slice().reverse().forEach(function (value) {
+                        var option = select.querySelector('option[value="' + CSS.escape(value) + '"]');
+                        if (option && select.firstChild !== option) { select.insertBefore(option, select.firstChild); changed = true; }
+                    });
+                }
+                if (changed) fire(select, 'change', { values: values });
+            }
+        });
+
+        mount(select, widget, mode, select.dataset.relationTitle);
+        widget.load();
+    }
+
+    function mount(field, widget, mode, title) {
+        field.classList.add('rs-source');
+        field.setAttribute('data-relation-initialized', '1');
+        if (mode === 'modal') {
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'rs-btn rs-open-modal';
+            var updateButton = function () {
+                var count = widget.selected.length;
+                button.innerHTML = icon('list') + esc(title || t('choose')) + ' <span class="rs-count-badge' + (count ? ' rs-has-items' : '') + '">' + count + '</span>';
+            };
+            var modal = new Modal(widget, title);
+            modal.onApply = updateButton;
+            button.addEventListener('click', function () { modal.open(); });
+            field.insertAdjacentElement('afterend', button);
+            updateButton();
+            var origCommit = widget.opts.commit;
+            widget.opts.commit = function (values) { origCommit(values); updateButton(); };
+            var origRender = widget.render;
+            widget.render = function () { origRender.call(widget); updateButton(); };
+        } else {
+            field.insertAdjacentElement('afterend', widget.root);
+        }
+        field.rsWidget = widget;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Init                                                                */
+    /* ------------------------------------------------------------------ */
+
+    function init(container) {
+        container = container && container.querySelectorAll ? container : document;
+        Array.prototype.forEach.call(container.querySelectorAll('input[data-relation-config]:not([data-relation-initialized])'), initInput);
+
+        var enhance = settings().enhance || 'attribute';
+        var selector = 'select[data-relation-select]:not([data-relation-initialized])';
+        Array.prototype.forEach.call(container.querySelectorAll(selector), initSelect);
+        if (enhance === 'multiple' || enhance === 'all') {
+            var auto = enhance === 'all'
+                ? '[data-be-relation-wrapper] select:not([data-relation-initialized])'
+                : '[data-be-relation-wrapper] select[multiple]:not([data-relation-initialized])';
+            Array.prototype.forEach.call(container.querySelectorAll(auto), function (select) {
+                if (select.dataset.relationSelect === 'off') return;
+                initSelect(select);
+            });
+        }
+    }
+
+    window.RelationSelect = { init: init, Widget: Widget, renderLabel: renderLabel };
+
+    if (window.jQuery) {
+        window.jQuery(document).on('rex:ready', function (e, container) { init(container && container[0] ? container[0] : container); });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { init(document); });
+    else init(document);
+})();

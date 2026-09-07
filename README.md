@@ -1,532 +1,154 @@
-# Relation Select AddOn
+# Relation Select
 
 ![Screenshot](https://raw.githubusercontent.com/FriendsOfREDAXO/relation_select/assets/screen.png)
 
-Ermöglicht die Auswahl und Sortierung verknüpfter Datensätze mit erweiterten Filter- und Sortiermöglichkeiten.
+Relation Select ist ein Auswahl-Widget für Datensätze: links die verfügbaren Einträge mit Suche, rechts die Auswahl, die sich per Drag & Drop sortieren lässt. Es läuft in Modulen, in YForm-Formularen und mit eigenem Token auch im Frontend. Gespeichert wird eine kommaseparierte Liste der gewählten Werte, in der Reihenfolge der Auswahl.
 
-## Features
+Das Widget bringt seine Symbole als Inline-SVG mit und braucht weder Bootstrap noch eine Icon-Font. Farben, Formen und Dark Mode folgen dem REDAXO-Backend (wie Linkmap und MediaPlace), im Frontend lassen sie sich über CSS-Variablen (`--rs-*`) anpassen.
 
-- 🎯 Benutzerfreundliche Oberfläche zum Auswählen und Sortieren von Datensätzen
-- 🔍 Durchsuchbare Liste verfügbarer Einträge mit Debounce-Optimierung
-- 🎨 Drag & Drop Sortierung der ausgewählten Einträge
-- 🔒 Sichere API mit XSS-Schutz und Type Safety
-- 📱 Responsive Design für mobile Geräte
-- ♿ Accessibility-optimiert (ARIA-Labels, Keyboard-Navigation)
-- 🚀 Performance-optimiert (Document Fragments, debounced Search)
-- 🔧 Flexible Filtermöglichkeiten mit vereinfachter Syntax
-- 📅 Automatische Datumswerte (now, today)
-- 🏷️ Flexible Label-Gestaltung durch Feldverknüpfungen
-- 🔗 Unterstützung für Meta Infos und YForm
-- 📋 **Nativer YForm-Feldtyp** mit Tabellenmanager-Suche und Listendarstellung (ab 1.4.0)
-- 🔄 **Automatische Legacy-Kompatibilität**: Bestehende Text-Felder mit `data-relation-config` funktionieren nach Feldtypwechsel weiter (ab 1.4.1)
+## Auf einen Blick
+
+- Split-Auswahl mit Suche, „Alle sichtbaren hinzufügen“, „Auswahl leeren“
+- Sortierung per Drag & Drop, Tastaturbedienung (Enter/Leertaste, Enter im Suchfeld)
+- Inline unter dem Feld oder als Overlay mit Zähler-Button („Übernehmen“/„Abbrechen“)
+- Mehrfach- oder Einzelauswahl
+- Zusatzanzeigen im Label: Farbpunkt, Badge, Online/Offline-Punkt, ID
+- Mehrsprachige Felder (`lang:feld` für YForm `lang_text`)
+- **Zwei Quellen:** Datensätze per API aus einer Tabelle, oder die Optionen eines vorhandenen `<select>` – damit lassen sich YForm-Felder vom Typ `be_manager_relation` aufwerten, ohne API und ohne Tabellenfreigabe
+- Eigener YForm-Feldtyp `relation_select` mit Suche und Listendarstellung im Table Manager
+- Rechte: Backend-Benutzer sehen nur Tabellen, die sie auch im Backend sehen dürfen (Details unter Sicherheit)
+
+Verwaltung unter **AddOns → Relation Select**: Einstellungen (Tabellenfreigaben, Zeilenlimit, be_manager_relation-Aufwertung, Frontend-Token), Demo mit echten Daten der Installation, Hilfe.
 
 ## Installation
 
-1. Im REDAXO Installer das AddOn "relation_select" herunterladen
-2. AddOn installieren und aktivieren
-3. Bei Bedarf: API-Token für Frontend-Nutzung notieren
+Im Installer „relation_select“ laden und installieren. REDAXO ≥ 5.17, PHP ≥ 8.2. YForm ist optional.
 
-## Anforderungen
+## Verwendung in Modulen
 
-- REDAXO >= 5.17
-- PHP >= 8.2
-
-## Anwendung
-
-### Modi
-
-Das AddOn unterstützt zwei Anzeigemodi:
-
-#### **Inline-Modus (Standard)**
-Widget wird direkt unterhalb des Input-Feldes angezeigt:
+### Inline
 
 ```html
-<input type="text" 
-    name="REX_INPUT_VALUE[1]" 
-    value="REX_VALUE[1]"
+<input type="text" name="REX_INPUT_VALUE[1]" value="REX_VALUE[1]"
     data-relation-config='{
         "table": "rex_article",
         "valueField": "id",
         "labelField": "name"
-    }'
->
+    }'>
 ```
 
-#### **Modal-Modus**
-Widget wird in einem Overlay-Dialog geöffnet (ideal für platzsparende Layouts und Frontend-Verwendung):
+### Modal
 
 ```html
-<input type="text" 
-    name="REX_INPUT_VALUE[1]" 
-    value="REX_VALUE[1]"
+<input type="text" name="REX_INPUT_VALUE[1]" value="REX_VALUE[1]"
     data-relation-mode="modal"
-    data-relation-config='{
-        "table": "rex_article",
-        "valueField": "id",
-        "labelField": "name"
-    }'
->
+    data-relation-title="Artikel wählen"
+    data-relation-config='{ "table": "rex_article", "valueField": "id", "labelField": "name" }'>
 ```
 
-**Modal-Features:**
-- 🎯 Eigenes Modal-System (keine Bootstrap-Abhängigkeit)
-- � **Badge mit Anzahl** ausgewählter Einträge (live-Update)
-- 📱 Frontend-kompatibel
-- ⌨️ ESC-Taste zum Schließen
-- 🎨 Dark-Theme-Support
-- 📱 Responsive Design
-- 🔒 Body-Scroll-Lock während Modal offen ist
-- 💨 Smooth Animations
+Der Button zeigt die Anzahl der gewählten Einträge. „Übernehmen“ schreibt in das Feld, „Abbrechen“ oder Escape verwirft.
 
-**UX im Modal-Modus:**
-- Input-Feld wird ausgeblendet
-- Button zeigt Badge mit Anzahl der Auswahlen
-- Badge ist grau bei 0 Einträgen, blau bei Auswahl
-- Live-Update der Badge-Anzahl bei Änderungen
+### Einzelauswahl
 
-### YForm Value-Typ (empfohlen)
+`data-relation-multiple="0"` – es wird genau ein Wert gespeichert, eine neue Auswahl ersetzt die alte.
 
-Ab Version 1.4.0 steht `relation_select` als eigenständiger **YForm-Feldtyp** zur Verfügung. Das AddOn muss dafür aktiv sein, yform ist eine optionale Abhängigkeit.
+### Konfiguration (`data-relation-config`)
 
-Im YForm Table Manager unter **Felder > Hinzufügen** den Typ **`relation_select`** wählen. Folgende Einstellungen stehen zur Verfügung:
+| Schlüssel | Bedeutung | Beispiel |
+|---|---|---|
+| `table` | Quelltabelle | `rex_article` |
+| `valueField` | gespeicherte Spalte | `id` |
+| `labelField` | Anzeige, mehrere mit `\|`, `lang:` für mehrsprachige JSON-Felder | `vorname\|nachname`, `lang:title` |
+| `displayFields` | Zusatzanzeige: `color:feld`, `badge:feld`, `(id)` | `color:farbe\|badge:status\|(id)` |
+| `dbw` | Filter (siehe unten) | `status = 1, deleted = NULL` |
+| `dbob` | Sortierung, Feld und Richtung abwechselnd | `name, ASC, prio, DESC` |
+| `clang` | Sprach-ID für `lang:` und Artikeltabellen | `1` |
+| `multiple` | `false` = Einzelauswahl (alternativ Attribut) | `false` |
+| `token` | nur Frontend | |
+| `endpoint` | nur Frontend, Pfad zur index.php | `/index.php` |
 
-| Feld | Beschreibung | Beispiel |
-|------|-------------|----------|
-| Tabelle | Datenbankname der Quelltabelle | `rex_autoren` |
-| Wertfeld | Gespeichertes Feld (Standard: `id`) | `id` |
-| Anzeigefeld(er) | Label, mehrere mit `\|` trennen | `vorname\|nachname` |
-| Zusatzfelder (Display) | Farbe/Badge-Felder, Präfix `badge:` oder `color:` | `color:farbe\|badge:status` |
-| WHERE-Filter | Einträge einschränken (entspricht `dbw`) | `status = 1` |
-| Sortierung | Sortierreihenfolge (entspricht `dbob`) | `name, ASC` |
-| Mehrfachauswahl | Mehrere IDs speicherbar | ✓ |
+`badge:status` wird als Online/Offline-Punkt dargestellt (1 = online).
 
-Die Einstellungen **WHERE-Filter** und **Sortierung** im YForm-Feldtyp entsprechen exakt den `dbw`- und `dbob`-Parametern, die beim manuellen Textfeld per `data-relation-config` übergeben werden – gleiche Syntax, gleiche Regeln:
+### Filter-Syntax (`dbw`)
 
-- **WHERE-Filter** (`dbw`): SQL-WHERE-Bedingung, mehrere Bedingungen kommasepariert:
-  ```
-  status = 1, deleted = 0
-  ```
-- **Sortierung** (`dbob`): Feld und Richtung (`ASC`/`DESC`) abwechselnd kommasepariert:
-  ```
-  name, ASC
-  nachname, ASC, vorname, ASC
-  ```
-- **Zusatzfelder (Display)** (`displayFields`): Pipe-getrennte Anweisung für visuelle Extras:
-  ```
-  color:farbe|badge:status|(id)
-  ```
+Bedingungen kommasepariert, Werte werden als Parameter gebunden. Operatoren `=`, `!=`, `>`, `<`, `>=`, `<=` und `~` (Textsuche, `*` als Platzhalter, ohne Platzhalter „enthält“). Besondere Werte: `NULL`, `now` (CURRENT_TIMESTAMP), `today` (CURRENT_DATE). Werte mit Komma in `[[...]]`.
 
-**Suche im Tabellenmanager:** Wenn das Feld als durchsuchbar markiert ist, erscheint in der Suche automatisch ein Dropdown mit allen Einträgen der Quelltabelle (Einzelauswahl). Der WHERE-Filter aus der Feldkonfiguration wird dabei berücksichtigt.
+```
+status = 1
+name ~ Meier*
+parent_id = NULL
+valid_until > now
+title = [[Kaffee, Tee und mehr]]
+```
 
-**Listendarstellung:** Bei einem ausgewählten Datensatz wird dessen Label angezeigt. Bei mehreren Datensätzen erscheint ein Badge mit der Anzahl (z. B. `5 Datensätze`).
+Feldnamen in Filter und Sortierung müssen Spalten der Tabelle sein, sonst antwortet die API mit einem Fehler.
 
-**Kompatibilität mit bestehenden Text-Feldern:** Wer das Widget bisher als YForm-**Textfeld** mit `data-relation-config` in den *Individuellen Attributen* eingesetzt hat, kann das Feld direkt auf den Typ `relation_select` umstellen. So lange das Feld **Tabelle** leer bleibt, liest das AddOn die Konfiguration automatisch aus dem Attribut-JSON weiter. Sobald **Tabelle** ausgefüllt wird, gelten die neuen Felder.
+## YForm
 
-> **Vor dem Feldtypwechsel:** Das JSON aus dem Feld *Individuelle Attribute* zwischenspeichern! Beim Speichern des Feldes im YForm-Manager kann der bisherige Inhalt überschrieben werden. Die benötigten Werte sind danach im JSON sichtbar und können manuell in die Felder Tabelle, Wertfeld, Anzeigefeld usw. übertragen werden.
+### Feldtyp `relation_select`
 
----
+Im Table Manager unter Felder → Hinzufügen den Typ `relation_select` wählen: Tabelle, Wertfeld, Anzeigefeld(er), Zusatzfelder, WHERE-Filter, Sortierung, Mehrfachauswahl. Filter und Sortierung nutzen dieselbe Syntax wie `dbw`/`dbob`. Der Modal-Modus kommt über die individuellen Attribute: `{"data-relation-mode": "modal"}`.
 
-### Beispiel für eine Relation in YForm (als Textfeld mit Attributen)
+Im Table Manager wird das Feld als Dropdown durchsuchbar, in der Liste erscheint das Label des Datensatzes bzw. bei mehreren die Anzahl.
 
-Das Feld wird als **Textfeld** mit dem Namen der Relation angelegt (z.B. `autoren_id`).
+Bestehende Textfelder mit `data-relation-config` in den Attributen können auf den Typ umgestellt werden; solange „Tabelle“ leer bleibt, wird die Konfiguration aus dem Attribut gelesen.
 
-Bei den **individuellen Attributen** des Feldes wird folgendes eingetragen:
+### `be_manager_relation` aufwerten
 
-**Inline-Modus:**
+Für Felder vom Typ `be_manager_relation` (Select single/multiple) ersetzt Relation Select das Standard-Select durch das Widget. Die Optionen kommen aus dem Select selbst, es gibt keinen API-Aufruf, YForm speichert und validiert wie gewohnt (inklusive `relation_table`). In den individuellen Attributen des Feldes:
+
 ```json
-{
-    "data-relation-config": "{
-        \"table\": \"rex_autoren\",
-        \"valueField\": \"id\",
-        \"labelField\": \"vorname|nachname\"
-    }"
-}
+{"data-relation-select": "inline"}
 ```
 
-**Modal-Modus:**
-```json
-{
-    "data-relation-mode": "modal",
-    "data-relation-config": "{
-        \"table\": \"rex_autoren\",
-        \"valueField\": \"id\",
-        \"labelField\": \"vorname|nachname\"
-    }"
-}
-```
+oder `"modal"`. Unter Einstellungen lässt sich die Aufwertung auch automatisch für alle Mehrfach- bzw. alle Select-Relationen einschalten; `{"data-relation-select": "off"}` nimmt ein Feld davon aus. Die Reihenfolge der Auswahl wird an YForm übergeben, beim erneuten Öffnen zeigt YForm sie allerdings in der Reihenfolge der Zieltabelle, weil das Select keine Reihenfolge kennt.
 
-**Wichtig:** In YForm muss das JSON doppelt escaped werden (siehe Beispiel).
+Dasselbe funktioniert mit jedem `<select>`: `<select multiple data-relation-select="inline">`. Optionen können Zusatzdaten für `data-relation-format` mitbringen (`<option data-status="1">`, Format `badge:status`).
 
-### Beispiel mit Filtern und Sortierung
+## Frontend
+
+Die API ist vom Frontend aus nur mit Token erreichbar (Einstellungen → Frontend-Token) und liest dann ausschließlich die dort freigegebenen Tabellen. Beispiel:
 
 ```html
-<input type="text" 
-    name="REX_INPUT_VALUE[2]" 
-    value="REX_VALUE[2]"
-    data-relation-mode="modal"
-    data-relation-config='{
-        "table": "rex_authors",
-        "valueField": "id",
-        "labelField": "firstname|lastname",
-        "dbw": "status = 1, published != 0",
-        "dbob": "lastname,ASC,firstname,ASC"
-    }'
->
+<link rel="stylesheet" href="/assets/addons/relation_select/relation_select.css">
+<script src="/assets/addons/relation_select/relation_select.js"></script>
+
+<input type="hidden" name="tags" value=""
+    data-relation-config='{ "table": "rex_tags", "valueField": "id", "labelField": "name", "token": "…", "endpoint": "/index.php" }'>
 ```
 
-### Label-Syntax
-
-Einfache Feldverknüpfung (mit automatischem Leerzeichen):
-```json
-"labelField": "firstname|lastname"
-```
-
-### Erweiterte Label-Formatierung (NEU in 1.3.0)
-
-Anzeige zusätzlicher Informationen wie Farben, IDs oder Status-Badges:
-
-**Parameter:**
-- `displayFields`: Zusätzliche Felder aus der Datenbank (Pipe-getrennt: `"color|status"`)
-- `displayFormat`: Format-String mit folgenden Optionen:
-  - `color:feldname` - Farbvorschau als Quadrat (16x16px)
-  - `badge:feldname` - Status/Info als Badge
-  - `(id)` - ID-Anzeige in Klammern
-  - Pipe-getrennte Kombinationen möglich
-
----
-
-## Realistische Beispiele
-
-### 1. Artikel mit Farbkategorien (REDAXO Modul)
-
-```php
-<?php
-// Modul-Eingabe
-$field = '<input type="text" 
-    name="REX_INPUT_VALUE[1]" 
-    value="REX_VALUE[1]"
-    class="form-control relation-select"
-    data-relation-mode="modal"
-    data-relation-config=\'{
-        "table": "rex_article",
-        "valueField": "id",
-        "labelField": "name",
-        "displayFields": "art_color|status",
-        "displayFormat": "color:art_color|name|(id)|badge:status",
-        "dbw": "status = 1",
-        "dbob": "name,ASC"
-    }\'
-/>';
-
-echo $field;
-?>
-```
-
-**Ausgabe:**
-```php
-<?php
-$articleIds = explode(',', 'REX_VALUE[1]');
-$articleIds = array_filter(array_map('intval', $articleIds));
-
-if (count($articleIds) > 0) {
-    echo '<div class="article-grid">';
-    
-    foreach ($articleIds as $articleId) {
-        $article = rex_article::get($articleId);
-        if ($article) {
-            $color = $article->getValue('art_color') ?: '#cccccc';
-            $status = $article->getValue('status') == 1 ? 'Online' : 'Offline';
-            
-            echo '<div class="article-card" style="border-left: 4px solid ' . htmlspecialchars($color) . '">';
-            echo '  <h3>' . htmlspecialchars($article->getName()) . '</h3>';
-            echo '  <span class="status-badge">' . $status . '</span>';
-            echo '  <p class="article-id">#' . $articleId . '</p>';
-            echo '</div>';
-        }
-    }
-    
-    echo '</div>';
-}
-?>
-```
-
-**Ergebnis im Modal:** 🟦 Startseite (1) [Online]
-
----
-
-### 2. Produkt-Tags mit Farben (YForm Tabelle)
-
-**Tabelle:** `rex_shop_tags`
-- `id` (int)
-- `name` (varchar)
-- `tag_color` (varchar - Hex-Farbcode)
-- `priority` (int)
-- `status` (int)
-
-**YForm Feld-Konfiguration:**
-
-Feld-Typ: **text**  
-Individuelle Attribute:
-```json
-{
-    "class": "form-control relation-select",
-    "data-relation-mode": "modal",
-    "data-relation-config": "{
-        \"table\": \"rex_shop_tags\",
-        \"valueField\": \"id\",
-        \"labelField\": \"name\",
-        \"displayFields\": \"tag_color\",
-        \"displayFormat\": \"color:tag_color|name\",
-        \"dbw\": \"status = 1\",
-        \"dbob\": \"priority,DESC,name,ASC\"
-    }"
-}
-```
-
-**Ergebnis:** 🟢 Bio-Produkt 🔵 Vegan 🟡 Glutenfrei
-
----
-
-### 3. Event-Auswahl mit Datum und Status (REDAXO Modul)
-
-```html
-<input type="text" 
-    name="REX_INPUT_VALUE[2]" 
-    value="REX_VALUE[2]"
-    class="form-control relation-select"
-    data-relation-mode="modal"
-    data-relation-config='{
-        "table": "rex_yform_table_events",
-        "valueField": "id",
-        "labelField": "title",
-        "displayFields": "event_status",
-        "displayFormat": "name|(id)|badge:event_status",
-        "dbw": "event_date >= today, published = 1",
-        "dbob": "event_date,ASC"
-    }'
-/>
-```
-
-**Ergebnis im Modal:** 
-- Sommerfest 2026 (42) [Bestätigt]
-- Weihnachtsfeier (43) [In Planung]
-
----
-
-### 4. Mitarbeiter mit Abteilung und Status (YForm)
-
-**Tabelle:** `rex_hr_employees`
-- `id` (int)
-- `firstname` (varchar)
-- `lastname` (varchar)
-- `department` (varchar)
-- `employment_status` (varchar - "Aktiv", "Urlaub", "Extern")
-- `active` (int)
-
-**YForm Feld-Konfiguration:**
-```json
-{
-    "class": "form-control relation-select",
-    "data-relation-config": "{
-        \"table\": \"rex_hr_employees\",
-        \"valueField\": \"id\",
-        \"labelField\": \"firstname|lastname\",
-        \"displayFields\": \"department|employment_status\",
-        \"displayFormat\": \"name|badge:employment_status\",
-        \"dbw\": \"active = 1\",
-        \"dbob\": \"lastname,ASC,firstname,ASC\"
-    }"
-}
-```
-
-**Ergebnis:** 
-- Max Mustermann [Aktiv]
-- Anna Schmidt [Urlaub]
-
----
-
-### 5. Kategorien mit Hierarchie und Farbe
-
-```html
-<input type="text" 
-    name="REX_INPUT_VALUE[3]" 
-    value="REX_VALUE[3]"
-    class="form-control relation-select"
-    data-relation-config='{
-        "table": "rex_category",
-        "valueField": "id",
-        "labelField": "name",
-        "displayFields": "cat_color",
-        "displayFormat": "color:cat_color|(id)|name",
-        "dbw": "status = 1, parent_id != 0",
-        "dbob": "priority,DESC,name,ASC"
-    }'
-/>
-```
-
-**Ergebnis:** 🔴 (5) Dienstleistungen 🟢 (7) Produkte
-
----
-
-### 6. Komplexes Beispiel: News mit Autor, Status und Priorität
-
-```html
-<input type="text" 
-    name="REX_INPUT_VALUE[4]" 
-    value="REX_VALUE[4]"
-    class="form-control relation-select"
-    data-relation-mode="modal"
-    data-relation-config='{
-        "table": "rex_yform_table_news",
-        "valueField": "id",
-        "labelField": "title",
-        "displayFields": "priority_color|status",
-        "displayFormat": "color:priority_color|name|(id)|badge:status",
-        "dbw": "status != [[Gelöscht]], publish_date <= now",
-        "dbob": "priority,DESC,publish_date,DESC"
-    }'
-/>
-```
-
-**Ergebnis im Modal:**
-- 🔴 Breaking: Wichtige Neuigkeit (123) [Veröffentlicht]
-- 🟡 Update verfügbar (124) [Entwurf]
-- 🟢 Wartungshinweis (125) [Geplant]
-
----
-
-**Vorteile der erweiterten Formatierung:**
-✅ Sofortige visuelle Erkennung durch Farben  
-✅ Status auf einen Blick durch Badges  
-✅ ID-Anzeige für Debugging und Support  
-✅ Keine Bootstrap-Abhängigkeit  
-✅ Volle Dark-Theme-Unterstützung  
-✅ Frontend-kompatibel
-
-
-### Filter-Syntax (dbw)
-
-Der `dbw` Parameter ermöglicht das Filtern der Datensätze mit einer vereinfachten Syntax.
-
-#### Operatoren
-
-- `=`: Exakte Übereinstimmung
-- `!=`: Ungleich
-- `>`: Größer als
-- `<`: Kleiner als
-- `>=`: Größer oder gleich
-- `<=`: Kleiner oder gleich
-- `~`: Textsuche (LIKE)
-
-#### Spezielle Werte
-
-- `now`: Aktuelle Zeit (CURRENT_TIMESTAMP)
-- `today`: Aktuelles Datum (CURRENT_DATE)
-- `NULL`: NULL-Wert
-- Text mit Leerzeichen: `[[Mein Text]]`
-
-#### Beispiele für Filter
-
-```json
-// Einfache Vergleiche
-"dbw": "status = 1"
-"dbw": "priority >= 5"
-"dbw": "parent_id != 0"
-
-// Textsuche
-"dbw": "name = Willi Meier"              // Exakte Übereinstimmung
-"dbw": "name ~ Meier"                    // Enthält "Meier" irgendwo
-"dbw": "name ~ Start*"                   // Beginnt mit "Start"
-"dbw": "name ~ *Ende"                    // Endet mit "Ende"
-"dbw": "description ~ *wichtig*"         // Enthält "wichtig"
-
-// Datum und Zeit
-"dbw": "createdate > now"                // Nur zukünftige Einträge
-"dbw": "date_from = today"               // Einträge von heute
-"dbw": "valid_until > now"               // Noch gültige Einträge
-
-// NULL-Werte
-"dbw": "parent_id = NULL"                // Nur Hauptkategorien
-"dbw": "updated != NULL"                 // Nur bearbeitete Einträge
-
-// Mehrere Bedingungen
-"dbw": "status = 1, parent_id != 0"      // Online und keine Hauptkategorie
-"dbw": "name ~ Start*, status != 0"      // Beginnt mit "Start" und online
-"dbw": "priority >= 5, createdate > now" // Wichtige zukünftige Einträge
-```
-
-### Sortier-Syntax (dbob)
-
-Der `dbob` Parameter bestimmt die Sortierung der Einträge.
-
-#### Format
-- Komma-getrennte Liste: `Feld,Richtung,Feld,Richtung,...`
-- Richtung: `ASC` (aufsteigend) oder `DESC` (absteigend)
-- Wenn keine Richtung angegeben wird, wird `ASC` verwendet
-
-#### Beispiele für Sortierung
-
-```json
-// Einfache Sortierung
-"dbob": "name,ASC"                  // Alphabetisch nach Name
-"dbob": "priority,DESC"             // Höchste Priorität zuerst
-"dbob": "createdate,DESC"           // Neueste zuerst
-
-// Mehrfache Sortierung
-"dbob": "parent_id,ASC,name,ASC"    // Nach Kategorie, dann alphabetisch
-"dbob": "priority,DESC,name,ASC"    // Nach Priorität, bei gleicher alphabetisch
-```
-
+Der Token steht im Quelltext der Seite und ist damit für jeden Besucher lesbar. Er sollte nur Tabellen freischalten, deren Inhalt ohnehin öffentlich ist. „Token löschen“ schaltet die Frontend-API ab.
 
 ## Sicherheit
 
-### XSS-Schutz
-Alle Ausgaben (Labels, Values) werden automatisch escaped, um Cross-Site-Scripting (XSS) Angriffe zu verhindern.
+Die API liefert Rohdaten aus Tabellen, deshalb prüft sie jeden Aufruf:
 
-### SQL-Injection-Schutz
-Die API verwendet Prepared Statements und Parameter-Binding für alle Datenbankabfragen. Tabellenamen und Feldnamen werden mit `rex_sql::escapeIdentifier()` escaped.
+- **Wer:** eingeloggter Backend-Benutzer oder gültiger Frontend-Token. Ohne beides: 401.
+- **Welche Tabelle:** Admins alles; Backend-Benutzer die Inhaltstabellen des Cores (`rex_article`, `rex_article_slice`, `rex_media`, `rex_media_category`, `rex_clang`, `rex_template`, `rex_module`, `rex_metainfo_field`) und YForm-Tabellen mit Tabellenrecht (`yform_manager_table_view`/`_edit`); alle Aufrufer die unter Einstellungen freigegebenen Tabellen; der Token nur diese. Tabellen mit Zugangsdaten oder Konfiguration (`rex_user`, `rex_user_session`, `rex_user_passkey`, `rex_user_role`, `rex_config`, `rex_cronjob`, `rex_yform_history*`) sind für alle gesperrt. Sonst: 403.
+- **Welche Spalten:** Tabelle und Spalten müssen existieren (sonst 400). Spalten, deren Name auf Passwörter, Tokens, Sessions oder Schlüssel hindeutet, sind gesperrt (403).
+- **SQL:** Bezeichner werden geprüft und escaped, Werte gebunden. Farbwerte aus `color:` werden vor der Ausgabe auf gültige CSS-Farben geprüft, alle Texte escaped.
+- Es werden keine externen Skripte geladen.
 
-### Type Safety
-Das AddOn ist vollständig mit Rexstan validiert und verwendet strikte Typ-Deklarationen für alle Methoden und Parameter.
+Eigene Tabellen, die Redakteure ohne Admin-Rechte im Widget brauchen, werden unter Einstellungen → Freigegebene Tabellen ausgewählt. Die Auswahl ist selbst ein Relation Select über alle Tabellen der Datenbank, gesperrte Tabellen fehlen darin.
 
-### API Token
-Für Frontend-Zugriffe ist ein API-Token erforderlich. Backend-Zugriffe sind durch die REDAXO-Session geschützt.
+## API-Referenz
 
-## Performance
+`GET index.php?rex-api-call=relation_select`
 
-- **Document Fragments**: DOM-Manipulationen werden gebündelt für minimale Reflows
-- **Debounced Search**: Suchfunktion mit 200ms Verzögerung für bessere Performance
-- **Cache Control**: API-Responses werden nicht gecacht für aktuelle Daten
-- **Optimized Queries**: SQL-Queries mit `DISTINCT` und optimierten WHERE/ORDER-Klauseln
+| Parameter | Pflicht | Bedeutung |
+|---|---|---|
+| `table` | ja | Tabelle |
+| `value_field` | ja | Wertspalte |
+| `label_field` | ja | Anzeige, `\|`-getrennt, `lang:` möglich |
+| `display_fields` | | Zusatzspalten (`badge:x\|color:y`) |
+| `dbw`, `dbob` | | Filter, Sortierung |
+| `clang` | | Sprach-ID |
+| `values` | | bereits gewählte Werte (kommasepariert), werden unabhängig von Filter und Zeilenlimit mitgeliefert |
+| `token` | Frontend | Frontend-Token |
 
-## Barrierefreiheit
+Antwort: JSON-Liste `[{"value": "1", "label": "…", "status": "1"}, …]`, Fehler als `{"error": "…"}` mit passendem HTTP-Status.
 
-- ARIA-Labels für alle interaktiven Elemente
-- Keyboard-Navigation unterstützt
-- Focus-States für bessere Sichtbarkeit
-- Semantisches HTML
-
-## Theme-Support
-
-Das AddOn unterstützt alle REDAXO-Themes:
-
-### Light Theme (Standard)
-Helle Farben und hoher Kontrast für optimale Lesbarkeit
-
-### Dark Theme
-- Explizit: `body.rex-theme-dark`
-- Auto-Modus: `@media (prefers-color-scheme: dark)`
-- Verwendet REDAXO's offizielle Dark-Theme-Farbpalette
-- Farben: `#202b35` (Background), `#409be4` (Links), `rgba(255, 255, 255, 0.75)` (Text)
-
-### Auto Theme
-Automatische Erkennung der System-Präferenz mit Fallback auf Light Theme
-
-**CSS Custom Properties** mit Fallbacks sorgen für maximale Kompatibilität:
-```css
-color: var(--rex-text-color, #333);
-background: var(--rex-panel-bg, #fff);
-```
+JavaScript: `RelationSelect.init(container)` initialisiert neue Felder (Backend automatisch bei `rex:ready`). Das Feld löst bei Änderung `change` (und im Backend `rex:change`) aus; `feld.rsWidget` ist die Widget-Instanz. CSS-Variablen für eigene Farben: `--rs-bg`, `--rs-pane-bg`, `--rs-text`, `--rs-muted`, `--rs-border`, `--rs-active-bg`, `--rs-link`, `--rs-online`, `--rs-danger`, `--rs-btn-primary-bg`, `--rs-header-bg` u. a.
 
 ## Autor
 
@@ -542,54 +164,4 @@ background: var(--rex-panel-bg, #fff);
 
 ## Lizenz
 
-MIT License - siehe [LICENSE.md](LICENSE.md)
-
-## API Token (Frontend-Zugriff)
-
-Das AddOn verwendet einen API-Token, um den Zugriff auf die Daten vom Frontend aus zu schützen. 
-
-**Wichtig:** Dieser Token wird **nur** benötigt, wenn Sie die API-Daten im Frontend verwenden möchten (z.B. für eigene Formulare oder dynamische Inhalte). Für die Verwendung im REDAXO-Backend ist keine Konfiguration nötig.
-
-### Token anzeigen
-Der aktuelle Token kann im REDAXO-Backend unter `AddOns > Relation Select` eingesehen werden.
-
-### Token erneuern
-Um einen neuen Token zu generieren, kann folgender PHP-Code ausgeführt werden (z.B. in der REDAXO-Konsole):
-
-```php
-// Neuen Token generieren und speichern
-rex_config::set('relation_select', 'api_token', bin2hex(random_bytes(32)));
-```
-
-Alternativ kann das AddOn re-installiert werden, nachdem der Token aus der Konfiguration gelöscht wurde:
-
-```php
-// Token löschen (wird bei Re-Installation neu erstellt)
-rex_config::remove('relation_select', 'api_token');
-```
-
-### Verwendung im Frontend (Custom JavaScript)
-
-Das mitgelieferte JavaScript (`relation_select.js`) ist für die Verwendung im Backend optimiert. Wenn Sie die Funktionalität im Frontend nutzen möchten, müssen Sie eine eigene JavaScript-Implementierung schreiben, die die API anspricht.
-
-Der Aufruf erfolgt dabei analog zum Backend, jedoch muss zusätzlich der Token übergeben werden:
-
-`index.php?rex-api-call=relation_select&token=DEIN_TOKEN&table=rex_article&...`
-
-Beispiel für einen Fetch-Call:
-
-```javascript
-const params = new URLSearchParams({
-    'rex-api-call': 'relation_select',
-    'token': 'HIER_DEN_TOKEN_EINSETZEN',
-    'table': 'rex_article',
-    'value_field': 'id',
-    'label_field': 'name'
-});
-
-fetch('index.php?' + params.toString())
-    .then(response => response.json())
-    .then(data => console.log(data));
-```
-
-
+MIT License, siehe [LICENSE](LICENSE)

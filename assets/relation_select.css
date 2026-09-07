@@ -1,689 +1,344 @@
-/* Relation Select AddOn Styles */
-
-/* SVG Icons */
-.relation-select-icon {
-    display: inline-block;
-    vertical-align: middle;
-    fill: currentColor;
-}
-
-/* Enhanced Label Components */
-.relation-color-preview {
-    display: inline-block;
-    width: 16px;
-    height: 16px;
-    border-radius: 3px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    margin-right: 6px;
-    vertical-align: middle;
-    flex-shrink: 0;
-}
-
-.relation-color-empty {
-    background: repeating-linear-gradient(
-        45deg,
-        transparent,
-        transparent 2px,
-        rgba(0, 0, 0, 0.05) 2px,
-        rgba(0, 0, 0, 0.05) 4px
-    );
-}
-
-body.rex-theme-dark .relation-color-preview,
-@media (prefers-color-scheme: dark) {
-    body:not(.rex-theme-light) .relation-color-preview {
-        border-color: rgba(255, 255, 255, 0.2);
-    }
-}
-
-body.rex-theme-dark .relation-color-empty,
-@media (prefers-color-scheme: dark) {
-    body:not(.rex-theme-light) .relation-color-empty {
-        background: repeating-linear-gradient(
-            45deg,
-            transparent,
-            transparent 2px,
-            rgba(255, 255, 255, 0.1) 2px,
-            rgba(255, 255, 255, 0.1) 4px
-        );
-    }
-}
-
-.relation-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    font-size: 11px;
-    font-weight: 500;
-    line-height: 1.4;
-    border-radius: 3px;
-    background: var(--rex-info-bg, #e7f3ff);
-    color: var(--rex-info-color, #0066cc);
-    margin-right: 6px;
-    vertical-align: middle;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-
-.relation-badge-online {
-    background: var(--rex-success-bg, #d4edda);
-    color: var(--rex-success-color, #155724);
-}
-
-/* Status Circle Indicator */
-.relation-status {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    margin-right: 6px;
-    vertical-align: middle;
-    flex-shrink: 0;
-}
-
-.relation-status-online {
-    background: var(--rex-success-color, #28a745);
-    border: none;
-}
-
-.relation-status-offline {
-    background: transparent;
-    border: 2px solid var(--rex-text-muted, #6c757d);
-}
-
-body.rex-theme-dark .relation-status-offline,
-@media (prefers-color-scheme: dark) {
-    body:not(.rex-theme-light) .relation-status-offline {
-        border-color: rgba(255, 255, 255, 0.5);
-    }
-}
-
-body.rex-theme-dark .relation-badge,
-@media (prefers-color-scheme: dark) {
-    body:not(.rex-theme-light) .relation-badge {
-        background: rgba(64, 155, 228, 0.2);
-        color: #409be4;
-    }
-}
-
-body.rex-theme-dark .relation-badge-online,
-@media (prefers-color-scheme: dark) {
-    body:not(.rex-theme-light) .relation-badge-online {
-        background: rgba(40, 167, 69, 0.2);
-        color: #28a745;
-    }
-}
-
-.relation-id {
-    display: inline-block;
-    font-size: 11px;
-    color: var(--rex-text-muted, #6c757d);
-    margin-right: 6px;
-    vertical-align: middle;
-    font-family: monospace;
-    flex-shrink: 0;
-}
-
-body.rex-theme-dark .relation-id,
-@media (prefers-color-scheme: dark) {
-    body:not(.rex-theme-light) .relation-id {
-        color: rgba(255, 255, 255, 0.5);
-    }
-}
-
-.relation-label-text {
-    flex: 1;
-    margin: 0 8px;
-    word-break: break-word;
-    color: var(--rex-text-color, inherit);
-}
-
-.relation-select-widget {
-    display: flex;
-    gap: 20px;
-    margin: 10px 0;
-}
-
-.relation-select-available,
-.relation-select-selected {
-    flex: 1;
-    border: 1px solid var(--rex-border-color, #c1c9d4);
-    border-radius: 4px;
-    padding: 10px;
-    background: var(--rex-panel-bg, #fff);
-}
-
-.relation-select-search-row {
-    display: flex;
-    gap: 5px;
-    margin-bottom: 10px;
-    align-items: center;
-}
-
-.relation-select-search {
-    flex: 1;
-}
-
-.relation-select-add-all {
-    flex-shrink: 0;
-    white-space: nowrap;
-    padding: 6px 12px;
-    font-size: 12px;
-}
-
-.relation-select-add-all .relation-select-icon {
-    margin-right: 4px;
-}
-
-.relation-select-header {
-    margin-bottom: 10px;
-    font-weight: bold;
-    color: var(--rex-text-color, #333);
-}
-
-.relation-select-header-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-}
-
-.relation-select-clear-all {
-    padding: 2px 8px;
-    font-size: 12px;
-    color: var(--rex-danger-color, #dc3545);
-}
-
-.relation-select-clear-all:hover {
-    color: var(--rex-danger-hover, #c82333);
-}
-
-.relation-select-clear-all .relation-select-icon {
-    vertical-align: middle;
-}
-
-.relation-select-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    max-height: 300px;
-    overflow-y: auto;
-}
-
-.relation-select-list li {
-    display: flex;
-    align-items: center;
-    padding: 8px;
-    border: 1px solid var(--rex-border-light, #e9ecef);
-    margin-bottom: 5px;
-    border-radius: 3px;
-    background: var(--rex-panel-bg, #fff);
-    transition: background-color 0.2s, border-color 0.2s;
-}
-
-.relation-select-list li:hover {
-    background-color: var(--rex-hover-bg, #f8f9fa);
-}
-
-/* Available items are clickable */
-.relation-select-item-available {
-    cursor: pointer;
-}
-
-.relation-select-item-available:hover {
-    border-color: var(--rex-link-color, #007bff);
-}
-
-.relation-select-item-available .title {
-    cursor: pointer;
-}
-
-.relation-select-list li:last-child {
-    margin-bottom: 0;
-}
-
-/* Remove old .title class styling as we now use enhanced labels */
-.relation-select-list .title {
-    /* Deprecated - kept for backwards compatibility */
-    flex: 1;
-    margin: 0 10px;
-    word-break: break-word;
-    color: var(--rex-text-color, inherit);
-}
-
-.relation-select-list .handle {
-    cursor: move;
-    color: var(--rex-text-muted, #6c757d);
-    margin-right: 5px;
-    flex-shrink: 0;
-}
-
-.relation-select-list .handle:hover {
-    color: var(--rex-text-color, #495057);
-}
-
-.relation-select-list .btn-link {
-    padding: 2px 8px;
-    color: var(--rex-link-color, #007bff);
-    flex-shrink: 0;
-}
-
-.relation-select-list .btn-link:hover {
-    color: var(--rex-link-hover-color, #0056b3);
-}
-
-.relation-select-list .add-item .relation-select-icon {
-    color: var(--rex-success-color, #28a745);
-}
-
-.relation-select-list .remove-item .relation-select-icon {
-    color: var(--rex-danger-color, #dc3545);
-}
-
-.relation-select-list .error {
-    color: var(--rex-danger-color, #dc3545);
-    font-style: italic;
-    padding: 10px;
-    text-align: center;
-}
-
-/* Accessibility improvements */
-.relation-select-list li:focus-within {
-    outline: 2px solid var(--rex-link-color, #007bff);
-    outline-offset: 2px;
-}
-
-/* Mobile responsive */
-@media (max-width: 768px) {
-    .relation-select-widget {
-        flex-direction: column;
-    }
-}
-
-/* ============================================================================
-   Modal Mode
+/* ==========================================================================
+   Relation Select – Widget und Modal
+   Tokens nach Vorbild Linkmap/MediaPlace (be_style-Palette), Dark Mode ueber
+   body.rex-theme-dark bzw. prefers-color-scheme. Laeuft ohne Bootstrap und
+   ohne Icon-Font (Symbole als Inline-SVG), damit es auch im Frontend passt.
    ========================================================================== */
 
-.relation-select-open-modal {
-    margin-top: 5px;
-    position: relative;
+:root {
+    --rs-bg: #fff;
+    --rs-pane-bg: #f3f6fb;
+    --rs-text: #324050;
+    --rs-muted: #68727d;
+    --rs-border: #dfe3e9;
+    --rs-hover-bg: #dfe3e9;
+    --rs-active-bg: #dbedf7;
+    --rs-link: #2f6ea8;
+    --rs-input-bg: #fff;
+    --rs-input-border: #c7ccd3;
+    --rs-focus: #324050;
+    --rs-badge-bg: #dfe3e9;
+    --rs-badge-text: #324050;
+    --rs-online: #5bb585;
+    --rs-offline: #9aa3ad;
+    --rs-danger: #d9534f;
+    --rs-btn-bg: #fff;
+    --rs-btn-border: #c7ccd3;
+    --rs-btn-text: #324050;
+    --rs-btn-primary-bg: #5bb585;
+    --rs-btn-primary-hover: #45986c;
+    --rs-header-bg: #324050;
+    --rs-header-text: #fff;
+    --rs-overlay-bg: rgba(0, 0, 0, 0.6);
+    --rs-modal-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    --rs-radius: 4px;
 }
 
-.relation-select-badge {
-    display: inline-block;
-    min-width: 20px;
-    padding: 3px 7px;
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 1;
-    color: var(--rex-text-muted, #999);
-    background-color: var(--rex-border-light, #e9ecef);
-    border-radius: 10px;
-    margin-left: 8px;
-    transition: all 0.2s ease;
+body.rex-theme-dark {
+    --rs-bg: #1a202c;
+    --rs-pane-bg: #212836;
+    --rs-text: #d5dbe3;
+    --rs-muted: #8b95a3;
+    --rs-border: #3a4557;
+    --rs-hover-bg: #384252;
+    --rs-active-bg: #2d3748;
+    --rs-link: #7fb3e6;
+    --rs-input-bg: #2d3748;
+    --rs-input-border: #4a5568;
+    --rs-focus: #6c9bd2;
+    --rs-badge-bg: #3a4557;
+    --rs-badge-text: #d5dbe3;
+    --rs-btn-bg: #2d3748;
+    --rs-btn-border: #4a5568;
+    --rs-btn-text: #e2e8f0;
+    --rs-header-bg: #2d3748;
+    --rs-overlay-bg: rgba(0, 0, 0, 0.75);
+    --rs-modal-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
-.relation-select-badge.has-items {
-    color: #fff;
-    background-color: var(--rex-link-color, #007bff);
-    transform: scale(1.1);
+@media (prefers-color-scheme: dark) {
+    body.rex-has-theme:not(.rex-theme-light) {
+        --rs-bg: #1a202c;
+        --rs-pane-bg: #212836;
+        --rs-text: #d5dbe3;
+        --rs-muted: #8b95a3;
+        --rs-border: #3a4557;
+        --rs-hover-bg: #384252;
+        --rs-active-bg: #2d3748;
+        --rs-link: #7fb3e6;
+        --rs-input-bg: #2d3748;
+        --rs-input-border: #4a5568;
+        --rs-focus: #6c9bd2;
+        --rs-badge-bg: #3a4557;
+        --rs-badge-text: #d5dbe3;
+        --rs-btn-bg: #2d3748;
+        --rs-btn-border: #4a5568;
+        --rs-btn-text: #e2e8f0;
+        --rs-header-bg: #2d3748;
+        --rs-overlay-bg: rgba(0, 0, 0, 0.75);
+        --rs-modal-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
 }
 
-.relation-select-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 9999;
-    display: none;
+/* Quellfeld (Input/Select) bleibt im DOM, wird aber ausgeblendet */
+.rs-source { display: none !important; }
+
+/* --- Icons --------------------------------------------------------------- */
+.rs-icon { display: inline-flex; width: 1em; height: 1em; vertical-align: -0.15em; flex-shrink: 0; }
+.rs-icon svg { width: 100%; height: 100%; fill: currentColor; }
+
+/* --- Buttons ------------------------------------------------------------- */
+.rs-btn {
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
+    gap: 6px;
+    padding: 6px 12px;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--rs-btn-text);
+    background: var(--rs-btn-bg);
+    border: 1px solid var(--rs-btn-border);
+    border-radius: var(--rs-radius);
+    cursor: pointer;
+    white-space: nowrap;
 }
+.rs-btn:hover { background: var(--rs-hover-bg); }
+.rs-btn:focus-visible { outline: 2px solid var(--rs-focus); outline-offset: 1px; }
+.rs-btn-icon { padding: 6px 8px; }
+.rs-btn-primary { color: #fff; background: var(--rs-btn-primary-bg); border-color: var(--rs-btn-primary-bg); }
+.rs-btn-primary:hover { background: var(--rs-btn-primary-hover); border-color: var(--rs-btn-primary-hover); }
+.rs-clear-all:hover { color: var(--rs-danger); }
 
-.relation-select-modal.active {
+/* --- Split-Widget -------------------------------------------------------- */
+.rs-widget {
     display: flex;
+    gap: 12px;
+    margin: 6px 0;
+    color: var(--rs-text);
+    font-size: 13px;
 }
-
-.relation-select-modal-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(2px);
-}
-
-.relation-select-modal-dialog {
-    position: relative;
-    background: var(--rex-panel-bg, #fff);
-    border-radius: 8px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-    max-width: 90vw;
-    width: 900px;
-    max-height: 90vh;
+.rs-pane {
+    flex: 1 1 0;
+    min-width: 0;
     display: flex;
     flex-direction: column;
-    animation: modalSlideIn 0.2s ease-out;
-}
-
-@keyframes modalSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.relation-select-modal-header {
-    padding: 15px 20px;
-    border-bottom: 1px solid var(--rex-border-color, #e0e0e0);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.relation-select-modal-title {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--rex-text-color, #333);
-}
-
-.relation-select-modal-close {
-    background: none;
-    border: none;
-    font-size: 28px;
-    line-height: 1;
-    color: var(--rex-text-muted, #999);
-    cursor: pointer;
-    padding: 0;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    transition: background-color 0.2s, color 0.2s;
-}
-
-.relation-select-modal-close:hover {
-    background-color: var(--rex-hover-bg, #f0f0f0);
-    color: var(--rex-text-color, #333);
-}
-
-.relation-select-modal-body {
-    padding: 20px;
-    overflow-y: auto;
-    flex: 1;
-}
-
-.relation-select-modal-body .relation-select-widget {
-    margin: 0;
-}
-
-.relation-select-modal-footer {
-    padding: 15px 20px;
-    border-top: 1px solid var(--rex-border-color, #e0e0e0);
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-}
-
-.relation-select-modal-footer .btn {
-    padding: 8px 16px;
-}
-
-/* Prevent body scroll when modal is open - removed due to scroll jump issue in REDAXO backend
-body.relation-select-modal-open {
+    background: var(--rs-bg);
+    border: 1px solid var(--rs-border);
+    border-radius: var(--rs-radius);
     overflow: hidden;
 }
-*/
-
-/* Mobile modal adjustments */
-@media (max-width: 768px) {
-    .relation-select-modal-dialog {
-        width: 95vw;
-        max-height: 95vh;
-    }
-    
-    .relation-select-modal-header,
-    .relation-select-modal-body,
-    .relation-select-modal-footer {
-        padding: 12px 15px;
-    }
+.rs-pane-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px;
+    background: var(--rs-pane-bg);
+    border-bottom: 1px solid var(--rs-border);
+    min-height: 46px;
 }
-
-/* ============================================================================
-   Dark Theme Support
-   ========================================================================== */
-
-/* Apply dark theme when explicitly set */
-body.rex-theme-dark .relation-select-available,
-body.rex-theme-dark .relation-select-selected {
-    border-color: #26323f;
-    background: #202b35;
+.rs-pane-title {
+    flex: 1;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--rs-muted);
 }
-
-body.rex-theme-dark .relation-select-header {
-    color: rgba(255, 255, 255, 0.75);
+.rs-count {
+    display: inline-block;
+    min-width: 18px;
+    padding: 0 5px;
+    margin-left: 4px;
+    border-radius: 9px;
+    background: var(--rs-badge-bg);
+    color: var(--rs-badge-text);
+    font-size: 10px;
+    line-height: 18px;
+    text-align: center;
+    letter-spacing: 0;
 }
-
-body.rex-theme-dark .relation-select-list li {
-    border-color: #26323f;
-    background: #202b35;
+.rs-search-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 0 8px;
+    background: var(--rs-input-bg);
+    border: 1px solid var(--rs-input-border);
+    border-radius: var(--rs-radius);
+    color: var(--rs-muted);
+    font-weight: 400;
 }
-
-body.rex-theme-dark .relation-select-list li:hover {
-    background-color: #26323f;
+.rs-search-wrap:focus-within { border-color: var(--rs-focus); }
+.rs-search {
+    flex: 1;
+    min-width: 0;
+    padding: 5px 0;
+    border: 0;
+    background: transparent;
+    color: var(--rs-text);
+    font: inherit;
+    outline: none;
+    box-shadow: none;
 }
+.rs-search:focus { outline: none !important; box-shadow: none !important; }
 
-body.rex-theme-dark .relation-select-list .title {
-    color: rgba(255, 255, 255, 0.75);
+.rs-list {
+    list-style: none;
+    margin: 0;
+    padding: 4px;
+    max-height: 280px;
+    overflow-y: auto;
 }
-
-body.rex-theme-dark .relation-select-list .handle {
-    color: rgba(255, 255, 255, 0.45);
+.rs-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    user-select: none;
 }
-
-body.rex-theme-dark .relation-select-list .handle:hover {
-    color: rgba(255, 255, 255, 0.75);
+.rs-item:hover { background: var(--rs-hover-bg); }
+.rs-item:focus-visible { outline: 2px solid var(--rs-focus); outline-offset: -2px; }
+.rs-item-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
 }
-
-body.rex-theme-dark .relation-select-list .btn-link {
-    color: #409be4;
-}
-
-body.rex-theme-dark .relation-select-list .btn-link:hover {
-    color: #7abaec;
-}
-
-body.rex-theme-dark .relation-select-list .add-item i {
-    color: #0d6a38;
-}
-
-body.rex-theme-dark .relation-select-list .remove-item i {
-    color: #801919;
-}
-
-body.rex-theme-dark .relation-select-list .error {
-    color: #801919;
-}
-
-body.rex-theme-dark .relation-select-list li:focus-within {
-    outline-color: #409be4;
-}
-
-body.rex-theme-dark .relation-select-modal-dialog {
-    background: #202b35;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
-}
-
-body.rex-theme-dark .relation-select-modal-header,
-body.rex-theme-dark .relation-select-modal-footer {
-    border-color: #26323f;
-}
-
-body.rex-theme-dark .relation-select-modal-title {
-    color: rgba(255, 255, 255, 0.75);
-}
-
-body.rex-theme-dark .relation-select-modal-close {
-    color: rgba(255, 255, 255, 0.45);
-}
-
-body.rex-theme-dark .relation-select-modal-close:hover {
-    background-color: #26323f;
-    color: rgba(255, 255, 255, 0.75);
-}
-
-body.rex-theme-dark .relation-select-modal-overlay {
-    background: rgba(0, 0, 0, 0.7);
-}
-
-body.rex-theme-dark .relation-select-badge {
-    color: rgba(255, 255, 255, 0.45);
-    background-color: #26323f;
-}
-
-body.rex-theme-dark .relation-select-badge.has-items {
-    color: #fff;
-    background-color: #409be4;
-}
-
-/* Apply dark theme based on system preference (auto mode) */
-@media (prefers-color-scheme: dark) {
-    body:not(.rex-theme-light) .relation-select-available,
-    body:not(.rex-theme-light) .relation-select-selected {
-        border-color: #26323f;
-        background: #202b35;
-    }
-
-    body:not(.rex-theme-light) .relation-select-header {
-        color: rgba(255, 255, 255, 0.75);
-    }
-
-    body:not(.rex-theme-light) .relation-select-list li {
-        border-color: #26323f;
-        background: #202b35;
-    }
-
-    body:not(.rex-theme-light) .relation-select-list li:hover {
-        background-color: #26323f;
-    }
-
-    body:not(.rex-theme-light) .relation-select-list .title {
-        color: rgba(255, 255, 255, 0.75);
-    }
-
-    body:not(.rex-theme-light) .relation-select-list .handle {
-        color: rgba(255, 255, 255, 0.45);
-    }
-
-    body:not(.rex-theme-light) .relation-select-list .handle:hover {
-        color: rgba(255, 255, 255, 0.75);
-    }
-
-    body:not(.rex-theme-light) .relation-select-list .btn-link {
-        color: #409be4;
-    }
-
-    body:not(.rex-theme-light) .relation-select-list .btn-link:hover {
-        color: #7abaec;
-    }
-
-    body:not(.rex-theme-light) .relation-select-list .add-item i {
-        color: #0d6a38;
-    }
-
-    body:not(.rex-theme-light) .relation-select-list .remove-item i {
-        color: #801919;
-    }
-
-    body:not(.rex-theme-light) .relation-select-list .error {
-        color: #801919;
-    }
-
-    body:not(.rex-theme-light) .relation-select-list li:focus-within {
-        outline-color: #409be4;
-    }
-
-    body:not(.rex-theme-light) .relation-select-modal-dialog {
-        background: #202b35;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
-    }
-
-    body:not(.rex-theme-light) .relation-select-modal-header,
-    body:not(.rex-theme-light) .relation-select-modal-footer {
-        border-color: #26323f;
-    }
-
-    body:not(.rex-theme-light) .relation-select-modal-title {
-        color: rgba(255, 255, 255, 0.75);
-    }
-
-    body:not(.rex-theme-light) .relation-select-modal-close {
-        color: rgba(255, 255, 255, 0.45);
-    }
-
-    body:not(.rex-theme-light) .relation-select-modal-close:hover {
-        background-color: #26323f;
-        color: rgba(255, 255, 255, 0.75);
-    }
-
-    body:not(.rex-theme-light) .relation-select-modal-overlay {
-        background: rgba(0, 0, 0, 0.7);
-    }
-
-    body:not(.rex-theme-light) .relation-select-badge {
-        color: rgba(255, 255, 255, 0.45);
-        background-color: #26323f;
-    }
-
-    body:not(.rex-theme-light) .relation-select-badge.has-items {
-        color: #fff;
-        background-color: #409be4;
-    }
-}
-
-
-
-
-.relation-select-list .handle {
-    cursor: move;
-    color: #666;
-}
-
-.relation-select-list .btn {
+.rs-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-item-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
     padding: 0;
-    color: #666;
+    border: 0;
+    border-radius: 3px;
+    background: transparent;
+    color: var(--rs-muted);
+    cursor: pointer;
+    flex-shrink: 0;
 }
+.rs-item:hover .rs-add { color: var(--rs-online); }
+.rs-item:hover .rs-remove { color: var(--rs-danger); }
+.rs-item-action:hover { background: var(--rs-active-bg); }
+.rs-handle { color: var(--rs-muted); cursor: grab; display: inline-flex; }
+.rs-handle:active { cursor: grabbing; }
+.rs-item.rs-dragging { opacity: 0.4; }
+.rs-pane-selected .rs-item { background: var(--rs-active-bg); margin-bottom: 3px; }
+.rs-pane-selected .rs-item:hover { background: var(--rs-hover-bg); }
+.rs-empty { padding: 10px 8px; color: var(--rs-muted); font-style: italic; cursor: default; }
+.rs-error { color: var(--rs-danger); font-style: normal; }
 
-.relation-select-list .btn:hover {
-    color: #4b9ad9;
+/* Einzelauswahl: nur ein Eintrag, kein Griff */
+.rs-single .rs-pane-selected .rs-list { max-height: none; }
+
+/* Zusatzanzeigen im Label */
+.rs-color {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    flex-shrink: 0;
 }
-
-.relation-select-list li.sortable-ghost {
-    opacity: 0.5;
+.rs-color-empty { background: repeating-linear-gradient(45deg, transparent, transparent 2px, var(--rs-border) 2px, var(--rs-border) 4px); }
+.rs-badge {
+    display: inline-block;
+    padding: 0 5px;
+    border-radius: 3px;
+    background: var(--rs-badge-bg);
+    color: var(--rs-badge-text);
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
 }
+.rs-id { color: var(--rs-muted); font-size: 11px; }
+.rs-id::before { content: "#"; }
+.rs-state { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.rs-state-online { background: var(--rs-online); }
+.rs-state-offline { background: var(--rs-offline); }
 
-.relation-select-list li.sortable-drag {
-    background: #fff;
+/* --- Modal --------------------------------------------------------------- */
+.rs-open-modal { margin: 4px 0; }
+.rs-count-badge {
+    display: inline-block;
+    min-width: 18px;
+    padding: 0 6px;
+    border-radius: 9px;
+    background: var(--rs-badge-bg);
+    color: var(--rs-badge-text);
+    font-size: 11px;
+    line-height: 18px;
+    text-align: center;
 }
+.rs-count-badge.rs-has-items { background: var(--rs-link); color: #fff; }
 
-/* Darstellung Metainfo */
-
-.metainfo-sidebar .relation-select-widget {
+.rs-modal { display: none; position: fixed; inset: 0; z-index: 10050; }
+.rs-modal.rs-open { display: block; }
+.rs-modal-backdrop { position: absolute; inset: 0; background: var(--rs-overlay-bg); }
+.rs-modal-dialog {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(860px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    margin: 10px 0;
+    background: var(--rs-bg);
+    border-radius: 6px;
+    box-shadow: var(--rs-modal-shadow);
+    overflow: hidden;
+    color: var(--rs-text);
 }
+.rs-modal-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--rs-header-bg);
+    color: var(--rs-header-text);
+    font-size: 15px;
+    font-weight: 600;
+}
+.rs-modal-title { flex: 1; }
+.rs-modal-close {
+    display: inline-flex;
+    padding: 4px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font-size: 18px;
+    cursor: pointer;
+    opacity: 0.8;
+}
+.rs-modal-close:hover { opacity: 1; }
+.rs-modal-body { padding: 14px; overflow: auto; }
+.rs-modal-body .rs-widget { margin: 0; }
+.rs-modal-body .rs-list { max-height: min(50vh, 420px); }
+.rs-modal-footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--rs-pane-bg);
+    border-top: 1px solid var(--rs-border);
+}
+.rs-modal-status { flex: 1; color: var(--rs-muted); font-size: 12px; }
+html.rs-modal-open { position: fixed; width: 100%; overflow-y: scroll; }
 
-.metainfo-sidebar .relation-select-available,
-.metainfo-sidebar .relation-select-selected {
-    width: 100%;
+@media (max-width: 768px) {
+    .rs-widget { flex-direction: column; }
+    .rs-modal-dialog { width: calc(100vw - 16px); max-height: calc(100vh - 16px); }
 }

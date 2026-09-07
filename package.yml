@@ -4,8 +4,23 @@ author: Friends of REDAXO
 supportpage: https://github.com/FriendsOfREDAXO/relation_select
 
 page:
-    title: Relation Select
-    icon: rex-icon fa-exchange
+    title: 'translate:relation_select_title'
+    icon: rex-icon fa-right-left
+    perm: admin
+    subpages:
+        settings:
+            title: 'translate:relation_select_settings'
+            icon: rex-icon fa-gear
+            perm: admin
+        demo:
+            title: 'translate:relation_select_demo'
+            icon: rex-icon fa-play
+            perm: admin
+        help:
+            title: 'translate:relation_select_help'
+            subPath: README.md
+            itemClass: 'pull-right'
+            perm: admin
 
 requires:
     redaxo: '^5.17'
@@ -15,3 +30,8 @@ requires:
 optional:
     yform:
         version: '>=4.0'
+
+default_config:
+    allowed_tables: ''
+    max_rows: 0
+    enhance_be_relation: attribute

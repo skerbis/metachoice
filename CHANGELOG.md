@@ -1,5 +1,35 @@
 # Changelog
 
+## Unveröffentlicht
+
+### 🔒 Sicherheit
+- **API-Zugriff eingeschränkt**: Bisher konnte jeder eingeloggte Backend-Benutzer und jeder Token-Inhaber beliebige Tabellen und Spalten lesen (z. B. `rex_user` mit Passwort-Hashes, `rex_config`). Jetzt gilt: Tabellen mit Zugangsdaten/Konfiguration sind immer gesperrt; Backend-Benutzer lesen Core-Inhaltstabellen und YForm-Tabellen mit Tabellenrecht; Admins alles; freigegebene Tabellen (Einstellungen) alle Aufrufer; der Frontend-Token nur freigegebene Tabellen. Spalten mit Passwörtern/Tokens/Sessions sind gesperrt, Tabelle und Spalten müssen existieren
+- **Frontend-Token nur für Admins sichtbar**: Die Token-Seite war für alle Backend-Benutzer erreichbar. Token lässt sich jetzt neu erzeugen oder löschen (CSRF-geschützt)
+- **Kein externes Skript mehr**: SortableJS wurde von einem CDN ins Backend geladen. Sortierung jetzt per nativem Drag & Drop ohne Abhängigkeit
+- **CSS-Injection über `color:`-Felder** ausgeschlossen (nur gültige Farbwerte werden ausgegeben); Item-Daten nicht mehr als HTML-Attribut, sondern im JS gehalten
+- **YForm-Feldtyp**: WHERE-Filter wurde im Table-Manager-Suchfeld als roher SQL-String eingefügt; jetzt gleiche geprüfte Filtersyntax wie das Widget, Werte gebunden. Bezeichner werden geprüft, Zugangsdaten-Tabellen ausgeschlossen
+- Zeilenlimit pro Abfrage konfigurierbar (Einstellungen)
+
+### ✨ Neu
+- **`<select>` als Quelle**: `data-relation-select="inline|modal"` wertet jedes Select auf, insbesondere YForm `be_manager_relation` (Select single/multiple) – ohne API, ohne Tabellenfreigabe; optional automatisch für alle Relationen (Einstellungen)
+- AddOn-Seiten: Einstellungen, Demo mit echten Daten, Hilfe (README)
+- Einzelauswahl per `data-relation-multiple="0"`; der YForm-Schalter „Mehrfachauswahl“ wirkt jetzt tatsächlich
+- Parameter `values`: bereits gewählte Datensätze werden immer mitgeliefert (unabhängig von Filter/Limit), ein Request statt zwei
+- Modal mit „Abbrechen“, das Änderungen verwirft, Escape, Scroll-Lock ohne Sprung, Zähler-Button
+- Tastaturbedienung (Enter/Leertaste auf Einträgen, Enter im Suchfeld nimmt den ersten Treffer)
+- Gestaltung an Linkmap/MediaPlace angeglichen (Palette, Badges, Dark Mode), Symbole als Inline-SVG (frontendtauglich)
+- Alle Texte übersetzbar (de/en), Fallback im JS für das Frontend
+- `data-relation-title` für den Modal-Titel, `endpoint` für Frontend-Aufrufe
+
+### 🐛 Bugfixes
+- Filter: `now`/`today` wurden auch innerhalb anderer Wörter ersetzt (`unknown` → `unkCURRENT_TIMESTAMP`); `[[...]]` für Werte mit Komma funktioniert jetzt wie dokumentiert
+- Assets bekommen einen Cache-Buster, Browser laden nach Updates nicht mehr alte Dateien
+- `test_module.php` aus dem AddOn entfernt (Demo-Seite ersetzt es)
+
+### ⚠️ Hinweise zum Update
+- Nicht-Admins, die bisher beliebige eigene Tabellen im Widget nutzen konnten, brauchen jetzt eine Freigabe unter Einstellungen → Freigegebene Tabellen (oder ein YForm-Tabellenrecht)
+- Frontend-Integrationen: die freigegebenen Tabellen müssen eingetragen werden; der Token liest nichts anderes mehr
+
 ## Version 1.5.0 (2026-03-29)
 
 ### ✨ Neue Features

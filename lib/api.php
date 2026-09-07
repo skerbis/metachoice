@@ -2,10 +2,8 @@
 
 namespace FriendsOfRedaxo\RelationSelect;
 
-use rex_api_exception;
+use rex;
 use rex_api_function;
-use rex_api_result;
-use rex_backend_login;
 use rex_clang;
 use rex_config;
 use rex_response;
@@ -15,6 +13,19 @@ use rex_sql_exception;
 use function count;
 use function in_array;
 
+/**
+ * Liefert die Datensaetze einer Tabelle als JSON fuer das Widget.
+ *
+ * GET index.php?rex-api-call=relation_select&table=rex_article&value_field=id&label_field=name
+ *     [&display_fields=badge:status|color:art_color][&dbw=status = 1][&dbob=name,ASC]
+ *     [&clang=1][&values=1,5,9][&token=...]
+ *
+ * Zugriff: eingeloggter Backend-User (Tabellenrechte, siehe TableAccess) oder
+ * Frontend-Token (nur freigegebene Tabellen). Spalten muessen existieren,
+ * Spalten mit Zugangsdaten sind gesperrt. "values" liefert die bereits
+ * ausgewaehlten Datensaetze auch dann, wenn sie der Filter oder das
+ * Zeilenlimit ausschliessen wuerde.
+ */
 class RelationSelect extends rex_api_function
 {
     protected $published = true;
@@ -23,235 +34,158 @@ class RelationSelect extends rex_api_function
     {
         rex_response::cleanOutputBuffers();
 
-        // Security Check: Allow access if backend user is logged in OR valid token is provided
-        $token = rex_get('token', 'string', '');
-        $configuredToken = (string) rex_config::get('relation_select', 'api_token', '');
-
-        $hasSession = rex_backend_login::hasSession();
-        $tokenValid = '' !== $configuredToken && hash_equals($configuredToken, $token);
-
-        if (!$hasSession && !$tokenValid) {
-            throw new rex_api_exception('Access denied');
+        $user = rex::getUser();
+        if (null === $user) {
+            $token = rex_get('token', 'string', '');
+            $configured = (string) rex_config::get('relation_select', 'api_token', '');
+            if ('' === $token || '' === $configured || !hash_equals($configured, $token)) {
+                $this->fail(rex_response::HTTP_UNAUTHORIZED, 'Access denied');
+            }
         }
 
-        $table = rex_get('table', 'string', '');
-        $valueField = rex_get('value_field', 'string', '');
-        $labelField = rex_get('label_field', 'string', '');
-        $displayFields = rex_get('display_fields', 'string', ''); // Additional fields for color, badge, etc.
-        $clang = rex_get('clang', 'int', 0); // Language ID
-        $dbWhere = rex_get('dbw', 'string', '');
-        $dbOrderBy = rex_get('dbob', 'string', '');
+        $table = strtolower(trim(rex_get('table', 'string', '')));
+        $valueField = trim(rex_get('value_field', 'string', ''));
+        $labelField = trim(rex_get('label_field', 'string', ''));
+        $displayFields = trim(rex_get('display_fields', 'string', ''));
+        $clang = rex_get('clang', 'int', 0);
+        $dbWhere = trim(rex_get('dbw', 'string', ''));
+        $dbOrderBy = trim(rex_get('dbob', 'string', ''));
+        $values = trim(rex_get('values', 'string', ''));
 
         if ('' === $table || '' === $valueField || '' === $labelField) {
-            throw new rex_api_exception('Missing parameters');
+            $this->fail(rex_response::HTTP_BAD_REQUEST, 'Missing parameters');
         }
+        if (!TableAccess::tableExists($table)) {
+            $this->fail(rex_response::HTTP_BAD_REQUEST, 'Unknown table');
+        }
+        if (!TableAccess::isAllowed($table, $user)) {
+            $this->fail(rex_response::HTTP_FORBIDDEN, 'Permission denied for table');
+        }
+
+        $where = Filter::parseWhere($dbWhere);
+        $order = Filter::parseOrder($dbOrderBy);
+        $labelFields = Filter::fieldNames($labelField);
+        $additionalFields = Filter::fieldNames($displayFields);
+        $this->assertColumns($table, array_merge([$valueField], $labelFields, $additionalFields, $where['fields'], $order['fields']));
 
         $sql = rex_sql::factory();
+        $selectFields = [$sql->escapeIdentifier($valueField) . ' AS value', $this->labelExpression($labelFields, $labelField, $clang)];
+        foreach (array_unique($additionalFields) as $field) {
+            if ($field !== $valueField) {
+                $selectFields[] = $sql->escapeIdentifier($field);
+            }
+        }
+        $from = 'SELECT DISTINCT ' . implode(', ', $selectFields) . ' FROM ' . $sql->escapeIdentifier($table);
 
-        // Resolve language for lang: prefix support
-        // Two formats exist in REDAXO:
-        //   ARRAY format (YForm lang_text):  [{"clang_id": 1, "value": "..."}, ...]
-        //   OBJECT format (older addons):     {"de": "...", "nl": "..."}
-        $clangId = $clang > 0 ? $clang : rex_clang::getCurrentId();
-        $clangId = (int) $clangId;
-
-        $langCode = 'de';
-        $clangObj = rex_clang::get($clangId);
-        if ($clangObj) {
-            $langCode = preg_replace('/[^a-z]/', '', strtolower($clangObj->getCode()));
+        $conditions = $where['sql'];
+        $params = $where['params'];
+        // Sprachfilter fuer mehrsprachige Core-Tabellen
+        if ($clang > 0 && in_array($table, ['rex_article', 'rex_article_slice'], true)) {
+            $conditions[] = 'clang_id = ?';
+            $params[] = (string) $clang;
         }
 
-        // Parse label fields
-        // lang:fieldname → auto-detects JSON format per CASE JSON_TYPE():
-        //   ARRAY  → [{"clang_id":N,"value":"..."}] (YForm lang_text type)
-        //   OBJECT → {"de":"..."} (legacy/custom multi-lang objects)
-        // plain fieldname → used as-is (BC)
-        $fields = array_map('trim', explode('|', $labelField));
-        $labelExpr = [];
+        $query = $from;
+        if ([] !== $conditions) {
+            $query .= ' WHERE ' . implode(' AND ', $conditions);
+        }
+        $query .= ' ORDER BY ' . ([] !== $order['sql'] ? implode(', ', $order['sql']) : 'label');
+        $maxRows = (int) rex_config::get('relation_select', 'max_rows', 0);
+        if ($maxRows > 0) {
+            $query .= ' LIMIT ' . $maxRows;
+        }
 
-        foreach ($fields as $field) {
-            if ('' === $field) {
-                continue;
+        try {
+            $rows = rex_sql::factory()->getArray($query, $params);
+
+            // Bereits ausgewaehlte Werte immer mitliefern (unabhaengig von Filter/Limit)
+            $selectedValues = array_values(array_filter(array_map('trim', explode(',', $values)), static fn (string $v): bool => '' !== $v));
+            if ([] !== $selectedValues) {
+                $known = array_map(static fn (array $row): string => (string) $row['value'], $rows);
+                $missing = array_values(array_diff($selectedValues, $known));
+                if ([] !== $missing) {
+                    $in = implode(', ', array_fill(0, count($missing), '?'));
+                    $extra = rex_sql::factory()->getArray($from . ' WHERE ' . $sql->escapeIdentifier($valueField) . ' IN (' . $in . ')', $missing);
+                    $rows = array_merge($rows, $extra);
+                }
             }
+        } catch (rex_sql_exception $e) {
+            $this->fail(rex_response::HTTP_BAD_REQUEST, 'Query failed');
+        }
+
+        // Im Frontend kann vor dem API-Aufruf bereits ein 404 (fehlender Artikel) gesetzt sein
+        rex_response::setStatus(rex_response::HTTP_OK);
+        rex_response::sendJson($rows);
+        exit;
+    }
+
+    /**
+     * Spalten muessen existieren und duerfen keine Zugangsdaten enthalten.
+     *
+     * @param list<string> $columns
+     */
+    private function assertColumns(string $table, array $columns): void
+    {
+        foreach (array_unique($columns) as $column) {
+            if (!TableAccess::columnExists($table, $column)) {
+                $this->fail(rex_response::HTTP_BAD_REQUEST, 'Unknown column: ' . $column);
+            }
+            if (TableAccess::isDeniedColumn($column)) {
+                $this->fail(rex_response::HTTP_FORBIDDEN, 'Column not allowed: ' . $column);
+            }
+        }
+    }
+
+    /**
+     * CONCAT der Label-Felder. "lang:feld" liest mehrsprachige JSON-Felder:
+     * ARRAY-Format [{"clang_id":1,"value":"..."}] (YForm lang_text) oder
+     * OBJECT-Format {"de":"..."}; Fallback auf den Rohwert.
+     *
+     * @param list<string> $labelFields bereinigte Feldnamen
+     */
+    private function labelExpression(array $labelFields, string $rawLabelField, int $clang): string
+    {
+        $sql = rex_sql::factory();
+        $clangId = $clang > 0 ? $clang : rex_clang::getCurrentId();
+        $clangObj = rex_clang::get($clangId);
+        $langCode = null !== $clangObj ? (string) preg_replace('/[^a-z]/', '', strtolower($clangObj->getCode())) : 'de';
+        if ('' === $langCode) {
+            $langCode = 'de';
+        }
+
+        $langFields = [];
+        foreach (explode('|', $rawLabelField) as $field) {
+            $field = trim($field);
             if (str_starts_with($field, 'lang:')) {
-                $realField = substr($field, 5);
-                $ef = $sql->escapeIdentifier($realField);
-                $clangIdSql = (string) $clangId;   // already cast to int – safe
-                $langCodeSql = "'" . $langCode . "'"; // already sanitized with preg_replace
-                // ARRAY: JSON_SEARCH finds the path to the matching clang_id entry,
-                //        REPLACE swaps 'clang_id' → 'value' in the path, JSON_UNQUOTE
-                //        strips outer quotes so JSON_EXTRACT gets a clean path.
-                // OBJECT: plain key lookup by language code.
-                $labelExpr[] = 'COALESCE('
+                $langFields[] = trim(substr($field, 5));
+            }
+        }
+
+        $expressions = [];
+        foreach ($labelFields as $field) {
+            $ef = $sql->escapeIdentifier($field);
+            if (in_array($field, $langFields, true)) {
+                $expressions[] = 'COALESCE('
                     . 'CASE JSON_TYPE(' . $ef . ') '
-                    . "WHEN 'ARRAY' THEN JSON_UNQUOTE(JSON_EXTRACT(" . $ef . ', JSON_UNQUOTE(REPLACE(JSON_SEARCH(' . $ef . ", 'one', " . $clangIdSql . ", NULL, '\$[*].clang_id'), 'clang_id', 'value')))) "
+                    . "WHEN 'ARRAY' THEN JSON_UNQUOTE(JSON_EXTRACT(" . $ef . ', JSON_UNQUOTE(REPLACE(JSON_SEARCH(' . $ef . ", 'one', " . $clangId . ", NULL, '\$[*].clang_id'), 'clang_id', 'value')))) "
                     . "WHEN 'OBJECT' THEN JSON_UNQUOTE(JSON_EXTRACT(" . $ef . ", '\$." . $langCode . "')) "
                     . 'ELSE NULL END, '
                     . $ef
                     . ')';
             } else {
-                $labelExpr[] = $sql->escapeIdentifier($field);
+                $expressions[] = $ef;
             }
         }
-
-        $labelExpr = 'CONCAT(' . implode(", ' ', ", $labelExpr) . ') as label';
-
-        // Parse display fields for additional data (color, status, etc.)
-        // Format: "color:feldname|badge:feldname|reinesfeld" – Präfix vor ":" wird entfernt
-        $additionalFields = [];
-        if ('' !== $displayFields) {
-            $displayFieldsList = array_map('trim', explode('|', $displayFields));
-            foreach ($displayFieldsList as $displayField) {
-                if ('' === $displayField) {
-                    continue;
-                }
-                // Präfix wie "badge:", "color:" etc. entfernen → nur den Feldnamen verwenden
-                $colonPos = strpos($displayField, ':');
-                $fieldName = false !== $colonPos ? substr($displayField, $colonPos + 1) : $displayField;
-                $fieldName = trim($fieldName);
-                if ('' !== $fieldName) {
-                    $additionalFields[] = $sql->escapeIdentifier($fieldName);
-                }
-            }
+        if ([] === $expressions) {
+            $expressions[] = "''";
         }
-
-        // Parse WHERE conditions
-        $where = [];
-        $params = [];
-        
-        // Add clang filter for multi-language tables (rex_article, rex_article_slice)
-        if ($clang > 0 && in_array($table, ['rex_article', 'rex_article_slice'], true)) {
-            $where[] = 'clang_id = ' . (int) $clang;
-        }
-        
-        if ('' !== $dbWhere) {
-            $conditions = array_map('trim', explode(',', $dbWhere));
-            foreach ($conditions as $condition) {
-                $parsedCondition = $this->parseCondition(trim($condition));
-                if (null !== $parsedCondition) {
-                    $where[] = $parsedCondition['sql'];
-                    if (isset($parsedCondition['value'])) {
-                        $params[] = $parsedCondition['value'];
-                    }
-                }
-            }
-        }
-
-        // Parse ORDER BY
-        $orderClauses = [];
-        if ('' !== $dbOrderBy) {
-            $orders = array_map('trim', explode(',', $dbOrderBy));
-            for ($i = 0; $i < count($orders); $i += 2) {
-                $field = $orders[$i];
-                $direction = isset($orders[$i + 1]) ? strtoupper($orders[$i + 1]) : 'ASC';
-                if ('DESC' !== $direction) {
-                    $direction = 'ASC';
-                }
-
-                $orderClauses[] = $sql->escapeIdentifier($field) . ' ' . $direction;
-            }
-        }
-
-        // Build SELECT fields array
-        $selectFields = [$sql->escapeIdentifier($valueField) . ' as value', $labelExpr];
-        if (count($additionalFields) > 0) {
-            $selectFields = array_merge($selectFields, $additionalFields);
-        }
-        
-        // Build query
-        $query = 'SELECT DISTINCT ' . implode(', ', $selectFields) . ' FROM '
-               . $sql->escapeIdentifier($table);
-
-        if (count($where) > 0) {
-            $query .= ' WHERE ' . implode(' AND ', $where);
-        }
-
-        if (count($orderClauses) > 0) {
-            $query .= ' ORDER BY ' . implode(', ', $orderClauses);
-        } else {
-            $query .= ' ORDER BY label';
-        }
-
-        try {
-            // Always create fresh SQL instance to avoid cached results
-            $freshSql = rex_sql::factory();
-            $options = $freshSql->getArray($query, $params);
-
-            rex_response::sendJson($options);
-            exit;
-        } catch (rex_sql_exception $e) {
-            throw new rex_api_exception($e->getMessage());
-        }
+        return 'CONCAT_WS(\' \', ' . implode(', ', $expressions) . ') AS label';
     }
 
-    /**
-     * @return array{sql: string, value?: string}|null
-     */
-    private function parseCondition(string $condition): ?array
+    private function fail(string $status, string $message): never
     {
-        $sql = rex_sql::factory();
-
-        // Remove all extra whitespace and trim
-        $condition = trim(preg_replace('/\s+/', ' ', $condition));
-
-        // Replace common date functions
-        $condition = str_replace('now', 'CURRENT_TIMESTAMP', $condition);
-        $condition = str_replace('today', 'CURRENT_DATE', $condition);
-
-        // Find operator and split condition
-        $operators = ['!=', '>=', '<=', '=', '>', '<', '~'];
-        $field = null;
-        $operator = null;
-        $value = null;
-
-        foreach ($operators as $op) {
-            $parts = explode($op, $condition);
-            if (2 === count($parts)) {
-                $field = trim($parts[0]);
-                $value = trim($parts[1]);
-                $operator = $op;
-                break;
-            }
-        }
-
-        if (null !== $field && null !== $operator && null !== $value) {
-            // Handle NULL values
-            if ('NULL' === strtoupper($value)) {
-                return [
-                    'sql' => $sql->escapeIdentifier($field) . ('=' === $operator ? ' IS NULL' : ' IS NOT NULL'),
-                ];
-            }
-
-            // Handle date functions
-            if (in_array($value, ['CURRENT_TIMESTAMP', 'CURRENT_DATE'], true)) {
-                return [
-                    'sql' => $sql->escapeIdentifier($field) . " $operator " . $value,
-                ];
-            }
-
-            // Handle string search with ~
-            if ('~' === $operator) {
-                // Convert * wildcards to SQL % wildcards
-                $value = str_replace('*', '%', $value);
-
-                // If no wildcards were used, wrap in %...%
-                if (!str_contains($value, '%')) {
-                    $value = '%' . $value . '%';
-                }
-
-                return [
-                    'sql' => $sql->escapeIdentifier($field) . ' LIKE ?',
-                    'value' => $value,
-                ];
-            }
-
-            // Regular value with parameter binding
-            return [
-                'sql' => $sql->escapeIdentifier($field) . " $operator ?",
-                'value' => $value,
-            ];
-        }
-
-        return null;
+        rex_response::setStatus($status);
+        rex_response::sendJson(['error' => $message]);
+        exit;
     }
 }
