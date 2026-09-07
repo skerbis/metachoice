@@ -1,6 +1,6 @@
 # Changelog
 
-## Unveröffentlicht
+## Version 2.0.0 (2026-09-07)
 
 ### 🔒 Sicherheit
 - **API-Zugriff eingeschränkt**: Bisher konnte jeder eingeloggte Backend-Benutzer und jeder Token-Inhaber beliebige Tabellen und Spalten lesen (z. B. `rex_user` mit Passwort-Hashes, `rex_config`). Jetzt gilt: Tabellen mit Zugangsdaten/Konfiguration sind immer gesperrt; Backend-Benutzer lesen Core-Inhaltstabellen und YForm-Tabellen mit Tabellenrecht; Admins alles; freigegebene Tabellen (Einstellungen) alle Aufrufer; der Frontend-Token nur freigegebene Tabellen. Spalten mit Passwörtern/Tokens/Sessions sind gesperrt, Tabelle und Spalten müssen existieren
