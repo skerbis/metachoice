@@ -339,6 +339,9 @@ body.rex-theme-dark {
 html.rs-modal-open { position: fixed; width: 100%; overflow-y: scroll; }
 
 @media (max-width: 768px) {
+    /* Untereinander: flex-basis 0 wuerde die Panels im Spaltenlayout auf 0 Hoehe druecken */
     .rs-widget { flex-direction: column; }
+    .rs-pane { flex: 0 0 auto; }
+    .rs-list { max-height: 220px; }
     .rs-modal-dialog { width: calc(100vw - 16px); max-height: calc(100vh - 16px); }
 }
